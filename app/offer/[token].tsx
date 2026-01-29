@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/Button';
+import { AppBanner } from '@/components/ui/AppBanner';
 import { Card } from '@/components/ui/Card';
 import { Colors } from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +20,7 @@ export default function OfferViewScreen() {
 
     useEffect(() => {
         loadOffer();
-        
+
         // Set up real-time subscription to slot changes
         const channel = supabase
             .channel('slot-changes')
@@ -140,13 +140,13 @@ export default function OfferViewScreen() {
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
         return {
-            date: date.toLocaleDateString('en-GB', { 
+            date: date.toLocaleDateString('en-GB', {
                 weekday: 'long',
-                day: 'numeric', 
+                day: 'numeric',
                 month: 'long',
                 year: 'numeric'
             }),
-            time: date.toLocaleTimeString('en-GB', { 
+            time: date.toLocaleTimeString('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit'
             })
@@ -187,6 +187,8 @@ export default function OfferViewScreen() {
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background }
             }} />
+
+            <AppBanner deepLink={`matchslot://offer/${token}`} />
 
             <View style={styles.container}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -266,8 +268,8 @@ export default function OfferViewScreen() {
                             const endTime = formatDateTime(slot.end_time).time;
 
                             return (
-                                <Card 
-                                    key={slot.id} 
+                                <Card
+                                    key={slot.id}
                                     style={[
                                         styles.slotCard,
                                         !available && styles.slotCardDisabled

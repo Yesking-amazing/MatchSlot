@@ -1,3 +1,4 @@
+import { AppBanner } from '@/components/ui/AppBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -240,6 +241,8 @@ export default function BookSlotScreen() {
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background }
             }} />
+
+            <AppBanner deepLink={`matchslot://offer/book/${slotId}`} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
