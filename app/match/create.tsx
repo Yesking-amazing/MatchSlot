@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
 import { generateApprovalLink } from '@/lib/shareLink';
 import { saveMyMatchId } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
@@ -10,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as MailComposer from 'expo-mail-composer';
 import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // Helper for the selection rows
@@ -36,7 +37,9 @@ interface TimeSlot {
 }
 
 export default function CreateMatchScreen() {
-    // Host Info
+    const { user } = useAuth();
+
+    // Host Info - pre-filled from logged-in user
     const [hostName, setHostName] = useState('');
     const [hostClub, setHostClub] = useState('');
     const [hostContact, setHostContact] = useState('');
@@ -68,6 +71,19 @@ export default function CreateMatchScreen() {
     const ageGroups: AgeGroup[] = ['U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'Open'];
     const formats: MatchFormat[] = ['5v5', '7v7', '9v9', '11v11'];
     const durations = [60, 70, 80, 90, 100, 120];
+
+    // Pre-fill user info from logged-in user
+    useEffect(() => {
+        if (user) {
+            // Set email from authenticated user
+            setHostContact(user.email || '');
+            // Set name from user metadata if available
+            const metadata = user.user_metadata;
+            if (metadata?.name) {
+                setHostName(metadata.name);
+            }
+        }
+    }, [user]);
 
     // Add new time slot
     const addTimeSlot = () => {
