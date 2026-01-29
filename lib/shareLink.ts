@@ -11,7 +11,7 @@ const USE_UNIVERSAL_LINKS = true;
 export function generateShareableLink(shareToken: string): string {
   if (USE_UNIVERSAL_LINKS) {
     // Your deployed web URL
-    const baseUrl = 'https://sage-kitsune-885b75.netlify.app';
+    const baseUrl = 'https://matchslotagain.netlify.app';
     return `${baseUrl}/offer/${shareToken}`;
   } else {
     // For TestFlight and early production - works immediately!
@@ -34,7 +34,7 @@ export async function copyLinkToClipboard(shareToken: string): Promise<void> {
  */
 export function generateApprovalLink(approvalToken: string): string {
   if (USE_UNIVERSAL_LINKS) {
-    const baseUrl = 'https://sage-kitsune-885b75.netlify.app';
+    const baseUrl = 'https://matchslotagain.netlify.app';
     return `${baseUrl}/approve/${approvalToken}`;
   } else {
     return `matchslot://approve/${approvalToken}`;
