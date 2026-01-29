@@ -205,12 +205,14 @@ export default function ManageScreen() {
                                 </Text>
                             </View>
                             <View style={[styles.statusBadge, {
-                                backgroundColor: offer.status === 'OPEN' ? '#E8F5E9' : '#FFEBEE'
+                                backgroundColor: offer.status === 'OPEN' ? '#E8F5E9' :
+                                    offer.status === 'PENDING_APPROVAL' ? '#FFF3E0' : '#FFEBEE'
                             }]}>
                                 <Text style={[styles.statusText, {
-                                    color: offer.status === 'OPEN' ? '#2E7D32' : '#C62828'
+                                    color: offer.status === 'OPEN' ? '#2E7D32' :
+                                        offer.status === 'PENDING_APPROVAL' ? '#E65100' : '#C62828'
                                 }]}>
-                                    {offer.status}
+                                    {offer.status === 'PENDING_APPROVAL' ? 'AWAITING APPROVAL' : offer.status}
                                 </Text>
                             </View>
                         </View>
@@ -251,24 +253,40 @@ export default function ManageScreen() {
 
                         {/* Actions */}
                         <View style={styles.actions}>
-                            <TouchableOpacity
-                                style={styles.actionButton}
-                                onPress={() => handleShareLink(offer.share_token)}
-                            >
-                                <Ionicons name="share-outline" size={20} color={Colors.light.primary} />
-                                <Text style={styles.actionButtonText}>Share Link</Text>
-                            </TouchableOpacity>
-
-                            {offer.status === 'OPEN' && (
-                                <TouchableOpacity
-                                    style={[styles.actionButton, styles.closeButton]}
-                                    onPress={() => handleDeleteOffer(offer.id)}
-                                >
-                                    <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
-                                    <Text style={[styles.actionButtonText, styles.closeButtonText]}>
-                                        Delete Offer
+                            {offer.status === 'PENDING_APPROVAL' ? (
+                                <View style={[styles.actionButton, styles.pendingButton]}>
+                                    <Ionicons name="hourglass-outline" size={20} color="#E65100" />
+                                    <Text style={[styles.actionButtonText, { color: '#E65100' }]}>
+                                        Waiting for Approver
                                     </Text>
-                                </TouchableOpacity>
+                                </View>
+                            ) : offer.status === 'OPEN' ? (
+                                <>
+                                    <TouchableOpacity
+                                        style={styles.actionButton}
+                                        onPress={() => handleShareLink(offer.share_token)}
+                                    >
+                                        <Ionicons name="share-outline" size={20} color={Colors.light.primary} />
+                                        <Text style={styles.actionButtonText}>Share Link</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, styles.closeButton]}
+                                        onPress={() => handleDeleteOffer(offer.id)}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
+                                        <Text style={[styles.actionButtonText, styles.closeButtonText]}>
+                                            Delete
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <View style={[styles.actionButton, { borderColor: Colors.light.textSecondary }]}>
+                                    <Ionicons name="checkmark-done" size={20} color={Colors.light.textSecondary} />
+                                    <Text style={[styles.actionButtonText, { color: Colors.light.textSecondary }]}>
+                                        {offer.status === 'CLOSED' ? 'Match Booked' : 'Cancelled'}
+                                    </Text>
+                                </View>
                             )}
                         </View>
                     </Card>
@@ -429,6 +447,10 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         borderColor: Colors.light.error,
+    },
+    pendingButton: {
+        borderColor: '#E65100',
+        backgroundColor: '#FFF3E0',
     },
     closeButtonText: {
         color: Colors.light.error,

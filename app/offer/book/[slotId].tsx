@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
-import { generateApprovalLink } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
 import { MatchOffer, Slot } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
@@ -89,10 +88,7 @@ export default function BookSlotScreen() {
 
         setSubmitting(true);
         try {
-            // Generate session ID for hold
-            const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-            // 1. Check slot is still available and update to PENDING_APPROVAL
+            // 1. Check slot is still available
             const { data: slotCheck, error: checkError } = await supabase
                 .from('slots')
                 .select('status')
@@ -102,7 +98,6 @@ export default function BookSlotScreen() {
             if (checkError) throw checkError;
 
             if (slotCheck.status !== 'OPEN') {
-                // US-GC-04: Slot unavailable handling
                 Alert.alert(
                     'Slot Unavailable',
                     'Sorry, this slot has been taken by another team. Please go back and select another available slot.',
@@ -113,12 +108,11 @@ export default function BookSlotScreen() {
                 return;
             }
 
-            // 2. Update slot with guest details and status
+            // 2. Book the slot directly (no approval needed - offer was pre-approved)
             const { error: updateError } = await supabase
                 .from('slots')
                 .update({
-                    status: 'PENDING_APPROVAL',
-                    held_by_session: sessionId,
+                    status: 'BOOKED',
                     held_at: new Date().toISOString(),
                     guest_name: guestName,
                     guest_club: guestClub,
@@ -129,77 +123,57 @@ export default function BookSlotScreen() {
 
             if (updateError) throw updateError;
 
-            // 3. Create approval request (US-AP-01)
-            const approvalToken = `approval-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-            const { error: approvalError } = await supabase
-                .from('approvals')
-                .insert({
-                    slot_id: slotId,
-                    match_offer_id: slot!.match_offer_id,
-                    approval_token: approvalToken,
-                    approver_email: offer!.approver_email,
-                    status: 'PENDING',
+            // 3. Close all other slots for this offer
+            const { error: rejectOthersError } = await supabase
+                .from('slots')
+                .update({ status: 'REJECTED' })
+                .eq('match_offer_id', slot!.match_offer_id)
+                .neq('id', slotId)
+                .in('status', ['OPEN', 'HELD']);
+
+            if (rejectOthersError) throw rejectOthersError;
+
+            // 4. Close the match offer
+            const { error: offerError } = await supabase
+                .from('match_offers')
+                .update({ status: 'CLOSED' })
+                .eq('id', slot!.match_offer_id);
+
+            if (offerError) throw offerError;
+
+            // 5. Send confirmation email to host
+            const isAvailable = await MailComposer.isAvailableAsync();
+
+            if (isAvailable && offer?.host_contact) {
+                await MailComposer.composeAsync({
+                    recipients: [offer.host_contact],
+                    subject: `Match Booked! ${guestClub} - ${offer?.age_group} ${offer?.format}`,
+                    body: `Hello ${offer?.host_name},\n\nGreat news! A match has been booked.\n\nOpponent: ${guestClub}\nContact: ${guestName} (${guestContact})\nDate: ${formatDateTime(slot!.start_time)}\nLocation: ${offer?.location}\n\nPlease contact them to confirm details.\n\nThanks,\nMatchSlot App`,
                 });
+            }
 
-            if (approvalError) throw approvalError;
-
-            // 4. Create notification for approver (US-AP-01, US-SYS-03)
-            const approvalLink = generateApprovalLink(approvalToken);
-            const { error: notificationError } = await supabase
-                .from('notifications')
-                .insert({
-                    recipient_email: offer!.approver_email,
-                    recipient_type: 'APPROVER',
-                    notification_type: 'APPROVAL_REQUEST',
-                    match_offer_id: slot!.match_offer_id,
-                    slot_id: slotId,
-                    subject: 'Match Booking Approval Required',
-                    message: `${guestClub} has requested to book a match slot. Please review and approve: ${approvalLink}`,
-                    sent: false,
-                });
-
-            if (notificationError) throw notificationError;
-
-            // 5. Create notification for host (US-SYS-03)
+            // 6. Create notification for host
             if (offer?.host_contact) {
                 await supabase.from('notifications').insert({
                     recipient_email: offer.host_contact,
                     recipient_type: 'HOST',
-                    notification_type: 'SLOT_SELECTED',
+                    notification_type: 'APPROVED',
                     match_offer_id: slot!.match_offer_id,
                     slot_id: slotId,
-                    subject: 'Match Slot Selected',
-                    message: `${guestClub} has selected a slot for your match offer and is awaiting approval.`,
+                    subject: 'Match Booked!',
+                    message: `${guestClub} has booked your match slot on ${formatDateTime(slot!.start_time)}.`,
                     sent: false,
                 });
             }
 
-            // Send Email via Native Composer (US-HC-TestFlight)
-            const isAvailable = await MailComposer.isAvailableAsync();
-
-            if (isAvailable) {
-                await MailComposer.composeAsync({
-                    recipients: [offer!.approver_email],
-                    subject: `Match Booking Approval Request - ${guestClub} (U${offer?.age_group})`,
-                    body: `Hello,\n\n${guestClub} has requested to book a match slot.\n\nDetails:\nMatch: U${offer?.age_group} ${offer?.format}\nDate: ${formatDateTime(slot!.start_time)}\nLocation: ${offer?.location}\n\nPlease review and approve the booking here:\n${approvalLink}\n\nThanks,\nMatchSlot App`,
-                });
-
-                Alert.alert(
-                    'Booking Submitted!',
-                    'Please send the email that was just created to complete the request.',
-                    [{ text: 'OK', onPress: () => router.push('/') }]
-                );
-            } else {
-                // Fallback for simulators or devices without mail accounts
-                Alert.alert(
-                    'Booking Submitted!',
-                    `Mail app not available. Please manually send this link to ${offer!.approver_email}:\n\n${approvalLink}`,
-                    [{ text: 'OK', onPress: () => router.push('/') }]
-                );
-            }
+            Alert.alert(
+                'Booking Confirmed! 🎉',
+                `You've successfully booked a match with ${offer?.host_club || offer?.host_name}.\n\nDate: ${formatDateTime(slot!.start_time)}\nLocation: ${offer?.location}\n\nThe host will contact you to confirm details.`,
+                [{ text: 'OK', onPress: () => router.push('/') }]
+            );
         } catch (e: any) {
             console.error(e);
-            Alert.alert('Error', 'Failed to submit booking: ' + e.message);
+            Alert.alert('Error', 'Failed to book match: ' + e.message);
         } finally {
             setSubmitting(false);
         }

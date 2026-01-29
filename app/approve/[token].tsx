@@ -1,26 +1,37 @@
+import { AppBanner } from '@/components/ui/AppBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
+import { generateShareableLink } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
 import { Approval, MatchOffer, Slot } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 /**
- * Approver Screen - US-AP-01, US-AP-02, US-AP-03
- * Approve or reject match booking requests
+ * Approval Screen - Handles both offer approval (pre-share) and slot approval (booking)
+ * 
+ * For OFFER approval (slot_id is null):
+ * - Approving sets the offer status to OPEN, enabling sharing
+ * 
+ * For SLOT approval (slot_id is set):
+ * - Approving confirms the booking
  */
 export default function ApprovalScreen() {
     const { token } = useLocalSearchParams<{ token: string }>();
     const [approval, setApproval] = useState<Approval | null>(null);
-    const [slot, setSlot] = useState<Slot | null>(null);
+    const [slots, setSlots] = useState<Slot[]>([]);
     const [offer, setOffer] = useState<MatchOffer | null>(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [decisionNotes, setDecisionNotes] = useState('');
+
+    // Determine if this is an offer approval (no slot_id) vs slot approval
+    const isOfferApproval = approval && !approval.slot_id;
 
     useEffect(() => {
         loadApprovalDetails();
@@ -38,18 +49,8 @@ export default function ApprovalScreen() {
             if (approvalError) throw approvalError;
 
             if (!approvalData) {
-                Alert.alert('Not Found', 'This approval request does not exist.');
                 return;
             }
-
-            // Load slot
-            const { data: slotData, error: slotError } = await supabase
-                .from('slots')
-                .select('*')
-                .eq('id', approvalData.slot_id)
-                .single();
-
-            if (slotError) throw slotError;
 
             // Load offer
             const { data: offerData, error: offerError } = await supabase
@@ -60,23 +61,31 @@ export default function ApprovalScreen() {
 
             if (offerError) throw offerError;
 
+            // Load slots for offer approval
+            const { data: slotsData, error: slotsError } = await supabase
+                .from('slots')
+                .select('*')
+                .eq('match_offer_id', approvalData.match_offer_id)
+                .order('start_time', { ascending: true });
+
+            if (slotsError) throw slotsError;
+
             setApproval(approvalData);
-            setSlot(slotData);
             setOffer(offerData);
+            setSlots(slotsData || []);
         } catch (e: any) {
             console.error(e);
-            Alert.alert('Error', 'Failed to load approval details');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleApprove = async () => {
-        if (!approval || !slot || !offer) return;
+    const handleApproveOffer = async () => {
+        if (!approval || !offer) return;
 
         Alert.alert(
-            'Approve Match',
-            'Are you sure you want to approve this match booking? This will confirm the booking and lock all other slots.',
+            'Approve Match Offer',
+            'This will allow the host to share the match link with other coaches. Continue?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -84,7 +93,7 @@ export default function ApprovalScreen() {
                     onPress: async () => {
                         setProcessing(true);
                         try {
-                            // 1. Update approval status (US-AP-02)
+                            // 1. Update approval status
                             const { error: approvalError } = await supabase
                                 .from('approvals')
                                 .update({
@@ -96,76 +105,50 @@ export default function ApprovalScreen() {
 
                             if (approvalError) throw approvalError;
 
-                            // 2. Update slot to BOOKED (US-AP-02)
-                            const { error: slotError } = await supabase
-                                .from('slots')
-                                .update({
-                                    status: 'BOOKED',
-                                })
-                                .eq('id', slot.id);
-
-                            if (slotError) throw slotError;
-
-                            // 3. Update all other slots for this offer to REJECTED (US-AP-02)
-                            const { error: rejectOthersError } = await supabase
-                                .from('slots')
-                                .update({
-                                    status: 'REJECTED',
-                                })
-                                .eq('match_offer_id', offer.id)
-                                .neq('id', slot.id)
-                                .in('status', ['OPEN', 'HELD', 'PENDING_APPROVAL']);
-
-                            if (rejectOthersError) throw rejectOthersError;
-
-                            // 4. Close the match offer
+                            // 2. Update offer status to OPEN (now shareable!)
                             const { error: offerError } = await supabase
                                 .from('match_offers')
                                 .update({
-                                    status: 'CLOSED',
+                                    status: 'OPEN',
                                 })
                                 .eq('id', offer.id);
 
                             if (offerError) throw offerError;
 
-                            // 5. Create notification for guest (US-SYS-03)
-                            if (slot.guest_contact) {
-                                await supabase.from('notifications').insert({
-                                    recipient_email: slot.guest_contact,
-                                    recipient_type: 'GUEST',
-                                    notification_type: 'APPROVED',
-                                    match_offer_id: offer.id,
-                                    slot_id: slot.id,
-                                    subject: 'Match Booking Approved!',
-                                    message: `Great news! Your match booking for ${offer.age_group} ${offer.format} at ${offer.location} has been approved.`,
-                                    sent: false,
-                                });
-                            }
-
-                            // 6. Create notification for host (US-SYS-03)
+                            // 3. Create notification for host
                             if (offer.host_contact) {
+                                const shareLink = generateShareableLink(offer.share_token);
                                 await supabase.from('notifications').insert({
                                     recipient_email: offer.host_contact,
                                     recipient_type: 'HOST',
                                     notification_type: 'APPROVED',
                                     match_offer_id: offer.id,
-                                    slot_id: slot.id,
-                                    subject: 'Match Booking Confirmed',
-                                    message: `The match with ${slot.guest_club} has been approved and confirmed.`,
+                                    subject: 'Match Offer Approved!',
+                                    message: `Great news! Your match offer has been approved. You can now share it with other coaches: ${shareLink}`,
                                     sent: false,
                                 });
                             }
 
+                            // Show share link
+                            const shareLink = generateShareableLink(offer.share_token);
+
                             Alert.alert(
                                 'Approved!',
-                                'The match booking has been approved. Both teams have been notified.',
+                                'The match offer has been approved. The host can now share it with other coaches.',
                                 [
-                                    { text: 'OK', onPress: () => router.push('/') }
+                                    {
+                                        text: 'Copy Share Link',
+                                        onPress: async () => {
+                                            await Clipboard.setStringAsync(shareLink);
+                                            Alert.alert('Copied!', 'Share link copied to clipboard');
+                                        }
+                                    },
+                                    { text: 'Done', onPress: () => router.push('/') }
                                 ]
                             );
                         } catch (e: any) {
                             console.error(e);
-                            Alert.alert('Error', 'Failed to approve booking: ' + e.message);
+                            Alert.alert('Error', 'Failed to approve offer: ' + e.message);
                         } finally {
                             setProcessing(false);
                         }
@@ -175,17 +158,17 @@ export default function ApprovalScreen() {
         );
     };
 
-    const handleReject = async () => {
-        if (!approval || !slot || !offer) return;
+    const handleRejectOffer = async () => {
+        if (!approval || !offer) return;
 
         if (!decisionNotes.trim()) {
-            Alert.alert('Note Required', 'Please provide a reason for rejecting this booking.');
+            Alert.alert('Note Required', 'Please provide a reason for rejecting this offer.');
             return;
         }
 
         Alert.alert(
-            'Reject Match',
-            'Are you sure you want to reject this match booking? The slot will become available again.',
+            'Reject Match Offer',
+            'This will prevent the host from sharing this match offer. Continue?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -194,7 +177,7 @@ export default function ApprovalScreen() {
                     onPress: async () => {
                         setProcessing(true);
                         try {
-                            // 1. Update approval status (US-AP-03)
+                            // 1. Update approval status
                             const { error: approvalError } = await supabase
                                 .from('approvals')
                                 .update({
@@ -206,60 +189,37 @@ export default function ApprovalScreen() {
 
                             if (approvalError) throw approvalError;
 
-                            // 2. Update slot back to OPEN (US-AP-03)
-                            const { error: slotError } = await supabase
-                                .from('slots')
+                            // 2. Update offer status to CANCELLED
+                            const { error: offerError } = await supabase
+                                .from('match_offers')
                                 .update({
-                                    status: 'OPEN',
-                                    held_by_session: null,
-                                    held_at: null,
-                                    guest_name: null,
-                                    guest_club: null,
-                                    guest_contact: null,
-                                    guest_notes: null,
+                                    status: 'CANCELLED',
                                 })
-                                .eq('id', slot.id);
+                                .eq('id', offer.id);
 
-                            if (slotError) throw slotError;
+                            if (offerError) throw offerError;
 
-                            // 3. Create notification for guest (US-AP-03, US-SYS-03)
-                            if (slot.guest_contact) {
-                                await supabase.from('notifications').insert({
-                                    recipient_email: slot.guest_contact,
-                                    recipient_type: 'GUEST',
-                                    notification_type: 'REJECTED',
-                                    match_offer_id: offer.id,
-                                    slot_id: slot.id,
-                                    subject: 'Match Booking Not Approved',
-                                    message: `Unfortunately, your match booking request was not approved. Reason: ${decisionNotes}`,
-                                    sent: false,
-                                });
-                            }
-
-                            // 4. Create notification for host (US-SYS-03)
+                            // 3. Notify host
                             if (offer.host_contact) {
                                 await supabase.from('notifications').insert({
                                     recipient_email: offer.host_contact,
                                     recipient_type: 'HOST',
                                     notification_type: 'REJECTED',
                                     match_offer_id: offer.id,
-                                    slot_id: slot.id,
-                                    subject: 'Match Booking Rejected',
-                                    message: `The booking request from ${slot.guest_club} was rejected. The slot is now available again.`,
+                                    subject: 'Match Offer Not Approved',
+                                    message: `Your match offer was not approved. Reason: ${decisionNotes}`,
                                     sent: false,
                                 });
                             }
 
                             Alert.alert(
                                 'Rejected',
-                                'The match booking has been rejected. The guest has been notified and the slot is available again.',
-                                [
-                                    { text: 'OK', onPress: () => router.push('/') }
-                                ]
+                                'The match offer has been rejected. The host has been notified.',
+                                [{ text: 'OK', onPress: () => router.push('/') }]
                             );
                         } catch (e: any) {
                             console.error(e);
-                            Alert.alert('Error', 'Failed to reject booking: ' + e.message);
+                            Alert.alert('Error', 'Failed to reject offer: ' + e.message);
                         } finally {
                             setProcessing(false);
                         }
@@ -271,11 +231,10 @@ export default function ApprovalScreen() {
 
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB', { 
+        return date.toLocaleDateString('en-GB', {
             weekday: 'long',
-            day: 'numeric', 
+            day: 'numeric',
             month: 'long',
-            year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
         });
@@ -289,12 +248,12 @@ export default function ApprovalScreen() {
         );
     }
 
-    if (!approval || !slot || !offer) {
+    if (!approval || !offer) {
         return (
             <View style={styles.centerContainer}>
                 <Ionicons name="alert-circle-outline" size={64} color={Colors.light.error} />
                 <Text style={styles.errorTitle}>Not Found</Text>
-                <Text style={styles.errorSubtitle}>This approval request does not exist.</Text>
+                <Text style={styles.errorSubtitle}>This approval request does not exist or has expired.</Text>
             </View>
         );
     }
@@ -302,14 +261,14 @@ export default function ApprovalScreen() {
     if (approval.status !== 'PENDING') {
         return (
             <View style={styles.centerContainer}>
-                <Ionicons 
-                    name={approval.status === 'APPROVED' ? 'checkmark-circle' : 'close-circle'} 
-                    size={64} 
-                    color={approval.status === 'APPROVED' ? Colors.light.success : Colors.light.error} 
+                <Ionicons
+                    name={approval.status === 'APPROVED' ? 'checkmark-circle' : 'close-circle'}
+                    size={64}
+                    color={approval.status === 'APPROVED' ? Colors.light.success : Colors.light.error}
                 />
                 <Text style={styles.errorTitle}>Already Processed</Text>
                 <Text style={styles.errorSubtitle}>
-                    This approval request has already been {approval.status.toLowerCase()}.
+                    This request has already been {approval.status.toLowerCase()}.
                 </Text>
                 {approval.decision_notes && (
                     <Card style={styles.decisionCard}>
@@ -321,27 +280,53 @@ export default function ApprovalScreen() {
         );
     }
 
+    // Render for OFFER approval (pre-share)
     return (
         <>
             <Stack.Screen options={{
-                title: 'Approve Match',
+                title: 'Approve Match Offer',
                 headerTitleStyle: { fontWeight: '700', fontSize: 18 },
-                headerBackTitleVisible: false,
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background }
             }} />
+
+            <AppBanner deepLink={`matchslot://approve/${token}`} />
 
             <View style={styles.container}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     {/* Header */}
                     <Card style={styles.headerCard}>
                         <View style={styles.headerIcon}>
-                            <Ionicons name="mail-open" size={40} color={Colors.light.primary} />
+                            <Ionicons name="shield-checkmark" size={40} color={Colors.light.primary} />
                         </View>
-                        <Text style={styles.headerTitle}>Match Booking Approval</Text>
+                        <Text style={styles.headerTitle}>Match Offer Approval</Text>
                         <Text style={styles.headerSubtitle}>
-                            A team is requesting to book a match slot. Please review the details below.
+                            A coach wants to share this match offer with other teams. Please review and approve before sharing.
                         </Text>
+                    </Card>
+
+                    {/* Host Details */}
+                    <Text style={styles.sectionTitle}>Host Coach</Text>
+                    <Card style={styles.detailsCard}>
+                        <View style={styles.detailRow}>
+                            <Ionicons name="person" size={24} color={Colors.light.primary} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.detailLabel}>Name</Text>
+                                <Text style={styles.detailValue}>
+                                    {offer.host_name}
+                                    {offer.host_club && ` (${offer.host_club})`}
+                                </Text>
+                            </View>
+                        </View>
+                        {offer.host_contact && (
+                            <View style={styles.detailRow}>
+                                <Ionicons name="call" size={24} color={Colors.light.primary} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.detailLabel}>Contact</Text>
+                                    <Text style={styles.detailValue}>{offer.host_contact}</Text>
+                                </View>
+                            </View>
+                        )}
                     </Card>
 
                     {/* Match Details */}
@@ -353,16 +338,6 @@ export default function ApprovalScreen() {
                                 <Text style={styles.detailLabel}>Match Type</Text>
                                 <Text style={styles.detailValue}>
                                     {offer.age_group} • {offer.format}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Ionicons name="calendar" size={24} color={Colors.light.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Date & Time</Text>
-                                <Text style={styles.detailValue}>
-                                    {formatDateTime(slot.start_time)}
                                 </Text>
                             </View>
                         </View>
@@ -382,60 +357,26 @@ export default function ApprovalScreen() {
                                 <Text style={styles.detailValue}>{offer.duration} minutes</Text>
                             </View>
                         </View>
-                    </Card>
 
-                    {/* Guest Team Details */}
-                    <Text style={styles.sectionTitle}>Requesting Team</Text>
-                    <Card style={styles.detailsCard}>
-                        <View style={styles.detailRow}>
-                            <Ionicons name="person" size={24} color={Colors.light.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Coach Name</Text>
-                                <Text style={styles.detailValue}>{slot.guest_name}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Ionicons name="shield" size={24} color={Colors.light.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Club</Text>
-                                <Text style={styles.detailValue}>{slot.guest_club}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                            <Ionicons name="call" size={24} color={Colors.light.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Contact</Text>
-                                <Text style={styles.detailValue}>{slot.guest_contact}</Text>
-                            </View>
-                        </View>
-
-                        {slot.guest_notes && (
+                        {offer.notes && (
                             <View style={styles.detailRow}>
                                 <Ionicons name="document-text" size={24} color={Colors.light.primary} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.detailLabel}>Notes</Text>
-                                    <Text style={styles.detailValue}>{slot.guest_notes}</Text>
+                                    <Text style={styles.detailValue}>{offer.notes}</Text>
                                 </View>
                             </View>
                         )}
                     </Card>
 
-                    {/* Host Details */}
-                    <Text style={styles.sectionTitle}>Host Coach</Text>
-                    <Card style={styles.detailsCard}>
-                        <View style={styles.detailRow}>
-                            <Ionicons name="person-circle" size={24} color={Colors.light.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Host</Text>
-                                <Text style={styles.detailValue}>
-                                    {offer.host_name}
-                                    {offer.host_club && ` (${offer.host_club})`}
-                                </Text>
-                            </View>
-                        </View>
-                    </Card>
+                    {/* Available Time Slots */}
+                    <Text style={styles.sectionTitle}>Available Time Slots</Text>
+                    {slots.map((slot, index) => (
+                        <Card key={slot.id} style={styles.slotCard}>
+                            <Ionicons name="calendar" size={20} color={Colors.light.primary} />
+                            <Text style={styles.slotText}>{formatDateTime(slot.start_time)}</Text>
+                        </Card>
+                    ))}
 
                     {/* Decision Notes */}
                     <Text style={styles.sectionTitle}>Your Decision</Text>
@@ -451,13 +392,13 @@ export default function ApprovalScreen() {
                 <View style={styles.footer}>
                     <Button
                         title="Reject"
-                        onPress={handleReject}
+                        onPress={handleRejectOffer}
                         loading={processing}
                         style={styles.rejectButton}
                     />
                     <Button
                         title="Approve"
-                        onPress={handleApprove}
+                        onPress={handleApproveOffer}
                         loading={processing}
                         style={styles.approveButton}
                     />
@@ -561,6 +502,18 @@ const styles = StyleSheet.create({
     },
     detailValue: {
         fontSize: 16,
+        color: Colors.light.text,
+        fontWeight: '500',
+    },
+    slotCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        padding: 16,
+        marginBottom: 12,
+    },
+    slotText: {
+        fontSize: 15,
         color: Colors.light.text,
         fontWeight: '500',
     },

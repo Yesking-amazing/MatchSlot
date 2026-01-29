@@ -2,11 +2,13 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
+import { generateApprovalLink } from '@/lib/shareLink';
 import { saveMyMatchId } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { AgeGroup, MatchFormat } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as MailComposer from 'expo-mail-composer';
 import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -148,7 +150,7 @@ export default function CreateMatchScreen() {
                     notes: notes || null,
                     share_token: shareToken,
                     approver_email: approverEmail,
-                    status: 'OPEN',
+                    status: 'PENDING_APPROVAL',
                 })
                 .select()
                 .single();
@@ -178,11 +180,45 @@ export default function CreateMatchScreen() {
 
                 const { error: slotsError } = await supabase.from('slots').insert(slotsToInsert);
                 if (slotsError) throw slotsError;
+
+                // 3. Create Approval Request for the offer itself
+                const approvalToken = `offer-approval-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+                const { error: approvalError } = await supabase
+                    .from('approvals')
+                    .insert({
+                        slot_id: null, // No slot yet - this is for the offer
+                        match_offer_id: offerData.id,
+                        approval_token: approvalToken,
+                        approver_email: approverEmail,
+                        status: 'PENDING',
+                    });
+
+                if (approvalError) throw approvalError;
+
+                // 4. Send email to approver
+                const approvalLink = generateApprovalLink(approvalToken);
+                const isAvailable = await MailComposer.isAvailableAsync();
+
+                const slotsText = timeSlots.map(slot => {
+                    const dateStr = slot.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+                    const startStr = slot.startTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    return `- ${dateStr} at ${startStr}`;
+                }).join('\n');
+
+                if (isAvailable) {
+                    await MailComposer.composeAsync({
+                        recipients: [approverEmail],
+                        subject: `Match Offer Approval Required - ${ageGroup} ${format}`,
+                        body: `Hello,\n\n${hostName}${hostClub ? ` (${hostClub})` : ''} has created a match offer that requires your approval before it can be shared with other coaches.\n\nMatch Details:\n- Age Group: ${ageGroup}\n- Format: ${format}\n- Duration: ${duration} minutes\n- Location: ${location}\n\nAvailable Time Slots:\n${slotsText}\n\nPlease review and approve this offer:\n${approvalLink}\n\nOnce approved, the host can share the link with other coaches.\n\nThanks,\nMatchSlot App`,
+                    });
+                }
             }
 
-            Alert.alert('Success', 'Match offer created successfully!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            Alert.alert(
+                'Approval Required',
+                'Your match offer has been created! An approval request has been sent to your approver. The share link will be available once approved.',
+                [{ text: 'OK', onPress: () => router.back() }]
+            );
         } catch (e: any) {
             console.error('Create match error:', e);
             console.error('Error details:', JSON.stringify(e, null, 2));

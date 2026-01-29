@@ -4,7 +4,7 @@ export type AgeGroup = 'U8' | 'U10' | 'U12' | 'U14' | 'U16' | 'U18' | 'Open';
 
 export type MatchFormat = '5v5' | '7v7' | '9v9' | '11v11';
 
-export type OfferStatus = 'OPEN' | 'CLOSED' | 'CANCELLED';
+export type OfferStatus = 'PENDING_APPROVAL' | 'OPEN' | 'CLOSED' | 'CANCELLED';
 
 export type SlotStatus = 'OPEN' | 'HELD' | 'PENDING_APPROVAL' | 'BOOKED' | 'REJECTED';
 
@@ -13,6 +13,7 @@ export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type NotificationType =
   | 'SLOT_SELECTED'
   | 'APPROVAL_REQUEST'
+  | 'OFFER_APPROVAL_REQUEST'
   | 'APPROVED'
   | 'REJECTED'
   | 'OFFER_CLOSED';
