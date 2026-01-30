@@ -225,7 +225,7 @@ export default function ApprovalScreen() {
             // Initialize slot statuses from database
             const statuses: Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'> = {};
             (slotsData || []).forEach(slot => {
-                statuses[slot.id] = slot.status === 'BOOKED' ? 'APPROVED' :
+                statuses[slot.id] = (slot.status === 'OPEN' || slot.status === 'BOOKED') ? 'APPROVED' :
                     slot.status === 'REJECTED' ? 'REJECTED' : 'PENDING';
             });
             setSlotStatuses(statuses);
@@ -262,13 +262,23 @@ export default function ApprovalScreen() {
                 setConfirmModal(null);
                 setProcessing(slot.id);
                 try {
-                    // Update slot status to BOOKED
+                    // Update slot status to OPEN (so users can book it)
                     const { error: slotError } = await supabase
                         .from('slots')
-                        .update({ status: 'BOOKED' })
+                        .update({ status: 'OPEN' })
                         .eq('id', slot.id);
 
                     if (slotError) throw slotError;
+
+                    // Update offer status to OPEN if it was pending
+                    if (offer && offer.status === 'PENDING_APPROVAL') {
+                        await supabase
+                            .from('match_offers')
+                            .update({ status: 'OPEN' })
+                            .eq('id', offer.id);
+
+                        setOffer(prev => prev ? { ...prev, status: 'OPEN' } : null);
+                    }
 
                     // Update local state
                     setSlotStatuses(prev => ({ ...prev, [slot.id]: 'APPROVED' }));
@@ -282,7 +292,7 @@ export default function ApprovalScreen() {
                             match_offer_id: offer.id,
                             slot_id: slot.id,
                             subject: 'Slot Approved!',
-                            message: `The slot on ${formatDateTime(slot.start_time)} has been approved.`,
+                            message: `The slot on ${formatDateTime(slot.start_time)} has been approved and is now live.`,
                             sent: false,
                         });
                     }
@@ -317,7 +327,22 @@ export default function ApprovalScreen() {
                     if (slotError) throw slotError;
 
                     // Update local state
-                    setSlotStatuses(prev => ({ ...prev, [slot.id]: 'REJECTED' }));
+                    const newStatuses: Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'> = { ...slotStatuses, [slot.id]: 'REJECTED' };
+                    setSlotStatuses(newStatuses);
+
+                    // If all slots are rejected, cancel the offer
+                    const allRejected = slots.every(s =>
+                        s.id === slot.id ? true : newStatuses[s.id] === 'REJECTED'
+                    );
+
+                    if (allRejected && offer) {
+                        await supabase
+                            .from('match_offers')
+                            .update({ status: 'CANCELLED' })
+                            .eq('id', offer.id);
+
+                        setOffer(prev => prev ? { ...prev, status: 'CANCELLED' } : null);
+                    }
 
                     // Notify host
                     if (offer?.host_contact) {
@@ -359,11 +384,11 @@ export default function ApprovalScreen() {
                 setConfirmModal(null);
                 setProcessing('all');
                 try {
-                    // Update all pending slots to BOOKED
+                    // Update all pending slots to OPEN
                     const pendingIds = pendingSlots.map(s => s.id);
                     const { error: slotError } = await supabase
                         .from('slots')
-                        .update({ status: 'BOOKED' })
+                        .update({ status: 'OPEN' })
                         .in('id', pendingIds);
 
                     if (slotError) throw slotError;
@@ -385,10 +410,12 @@ export default function ApprovalScreen() {
                             .from('match_offers')
                             .update({ status: 'OPEN' })
                             .eq('id', offer.id);
+
+                        setOffer(prev => prev ? { ...prev, status: 'OPEN' } : null);
                     }
 
                     // Update local state
-                    const newStatuses = { ...slotStatuses };
+                    const newStatuses: Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'> = { ...slotStatuses };
                     pendingIds.forEach(id => { newStatuses[id] = 'APPROVED'; });
                     setSlotStatuses(newStatuses);
 
@@ -455,10 +482,12 @@ export default function ApprovalScreen() {
                             .from('match_offers')
                             .update({ status: 'CANCELLED' })
                             .eq('id', offer.id);
+
+                        setOffer(prev => prev ? { ...prev, status: 'CANCELLED' } : null);
                     }
 
                     // Update local state
-                    const newStatuses = { ...slotStatuses };
+                    const newStatuses: Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'> = { ...slotStatuses };
                     pendingIds.forEach(id => { newStatuses[id] = 'REJECTED'; });
                     setSlotStatuses(newStatuses);
 

@@ -190,7 +190,7 @@ export default function CreateMatchScreen() {
                         match_offer_id: offerData.id,
                         start_time: startDateTime.toISOString(),
                         end_time: endDateTime.toISOString(),
-                        status: 'OPEN',
+                        status: 'PENDING_APPROVAL',
                     };
                 });
 
@@ -260,7 +260,6 @@ export default function CreateMatchScreen() {
             <Stack.Screen options={{
                 title: 'Create Match Offer',
                 headerTitleStyle: { fontWeight: '700', fontSize: 18 },
-                headerBackTitleVisible: false,
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background }
             }} />
