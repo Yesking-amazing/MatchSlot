@@ -6,7 +6,7 @@ import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = Colors['light'];
 
   return (
     <Tabs
