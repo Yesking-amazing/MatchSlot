@@ -1,7 +1,6 @@
 import { AppBanner } from '@/components/ui/AppBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
 import { generateShareableLink } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
@@ -10,28 +9,177 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 /**
- * Approval Screen - Handles both offer approval (pre-share) and slot approval (booking)
+ * Approval Screen - Handles individual slot approval/denial
  * 
- * For OFFER approval (slot_id is null):
- * - Approving sets the offer status to OPEN, enabling sharing
- * 
- * For SLOT approval (slot_id is set):
- * - Approving confirms the booking
+ * The approver can approve or deny each slot individually using
+ * the buttons next to each slot.
  */
+
+// Web-compatible confirmation modal
+interface ConfirmModalProps {
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    confirmStyle?: 'default' | 'destructive';
+    onConfirm: () => void;
+    onCancel: () => void;
+}
+
+function ConfirmModal({ visible, title, message, confirmText, confirmStyle, onConfirm, onCancel }: ConfirmModalProps) {
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+            <View style={modalStyles.overlay}>
+                <View style={modalStyles.container}>
+                    <Text style={modalStyles.title}>{title}</Text>
+                    <Text style={modalStyles.message}>{message}</Text>
+                    <View style={modalStyles.buttonRow}>
+                        <Pressable style={modalStyles.cancelButton} onPress={onCancel}>
+                            <Text style={modalStyles.cancelText}>Cancel</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[modalStyles.confirmButton, confirmStyle === 'destructive' && modalStyles.destructiveButton]}
+                            onPress={onConfirm}
+                        >
+                            <Text style={[modalStyles.confirmText, confirmStyle === 'destructive' && modalStyles.destructiveText]}>
+                                {confirmText}
+                            </Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+// Simple alert modal
+interface AlertModalProps {
+    visible: boolean;
+    title: string;
+    message: string;
+    onClose: () => void;
+}
+
+function AlertModal({ visible, title, message, onClose }: AlertModalProps) {
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <View style={modalStyles.overlay}>
+                <View style={modalStyles.container}>
+                    <Text style={modalStyles.title}>{title}</Text>
+                    <Text style={modalStyles.message}>{message}</Text>
+                    <View style={modalStyles.buttonRow}>
+                        <Pressable style={modalStyles.confirmButton} onPress={onClose}>
+                            <Text style={modalStyles.confirmText}>OK</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+const modalStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    container: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        maxWidth: 340,
+        width: '100%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.light.text,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    message: {
+        fontSize: 14,
+        color: Colors.light.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 20,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 12,
+    },
+    cancelButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        backgroundColor: '#E0E0E0',
+        minWidth: 80,
+    },
+    cancelText: {
+        fontSize: 16,
+        fontWeight: '500',
+        textAlign: 'center',
+        color: Colors.light.text,
+    },
+    confirmButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        backgroundColor: Colors.light.primary,
+        minWidth: 80,
+    },
+    confirmText: {
+        fontSize: 16,
+        fontWeight: '500',
+        textAlign: 'center',
+        color: '#fff',
+    },
+    destructiveButton: {
+        backgroundColor: Colors.light.error,
+    },
+    destructiveText: {
+        color: '#fff',
+    },
+});
+
 export default function ApprovalScreen() {
     const { token } = useLocalSearchParams<{ token: string }>();
     const [approval, setApproval] = useState<Approval | null>(null);
     const [slots, setSlots] = useState<Slot[]>([]);
     const [offer, setOffer] = useState<MatchOffer | null>(null);
     const [loading, setLoading] = useState(true);
-    const [processing, setProcessing] = useState(false);
-    const [decisionNotes, setDecisionNotes] = useState('');
+    const [processing, setProcessing] = useState<string | null>(null); // Track which slot is being processed
 
-    // Determine if this is an offer approval (no slot_id) vs slot approval
-    const isOfferApproval = approval && !approval.slot_id;
+    // Modal states
+    const [confirmModal, setConfirmModal] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        confirmText: string;
+        confirmStyle?: 'default' | 'destructive';
+        onConfirm: () => void;
+    } | null>(null);
+    const [alertModal, setAlertModal] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        onClose?: () => void;
+    } | null>(null);
+
+    // Track slot approval statuses (local state for UI)
+    const [slotStatuses, setSlotStatuses] = useState<Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'>>({});
 
     useEffect(() => {
         loadApprovalDetails();
@@ -61,7 +209,7 @@ export default function ApprovalScreen() {
 
             if (offerError) throw offerError;
 
-            // Load slots for offer approval
+            // Load slots for this offer
             const { data: slotsData, error: slotsError } = await supabase
                 .from('slots')
                 .select('*')
@@ -73,6 +221,14 @@ export default function ApprovalScreen() {
             setApproval(approvalData);
             setOffer(offerData);
             setSlots(slotsData || []);
+
+            // Initialize slot statuses from database
+            const statuses: Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'> = {};
+            (slotsData || []).forEach(slot => {
+                statuses[slot.id] = slot.status === 'BOOKED' ? 'APPROVED' :
+                    slot.status === 'REJECTED' ? 'REJECTED' : 'PENDING';
+            });
+            setSlotStatuses(statuses);
         } catch (e: any) {
             console.error(e);
         } finally {
@@ -80,164 +236,268 @@ export default function ApprovalScreen() {
         }
     };
 
-    const handleApproveOffer = async () => {
-        if (!approval || !offer) return;
-
-        Alert.alert(
-            'Approve Match Offer',
-            'This will allow the host to share the match link with other coaches. Continue?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Approve',
-                    onPress: async () => {
-                        setProcessing(true);
-                        try {
-                            // 1. Update approval status
-                            const { error: approvalError } = await supabase
-                                .from('approvals')
-                                .update({
-                                    status: 'APPROVED',
-                                    decision_at: new Date().toISOString(),
-                                    decision_notes: decisionNotes || null,
-                                })
-                                .eq('id', approval.id);
-
-                            if (approvalError) throw approvalError;
-
-                            // 2. Update offer status to OPEN (now shareable!)
-                            const { error: offerError } = await supabase
-                                .from('match_offers')
-                                .update({
-                                    status: 'OPEN',
-                                })
-                                .eq('id', offer.id);
-
-                            if (offerError) throw offerError;
-
-                            // 3. Create notification for host
-                            if (offer.host_contact) {
-                                const shareLink = generateShareableLink(offer.share_token);
-                                await supabase.from('notifications').insert({
-                                    recipient_email: offer.host_contact,
-                                    recipient_type: 'HOST',
-                                    notification_type: 'APPROVED',
-                                    match_offer_id: offer.id,
-                                    subject: 'Match Offer Approved!',
-                                    message: `Great news! Your match offer has been approved. You can now share it with other coaches: ${shareLink}`,
-                                    sent: false,
-                                });
-                            }
-
-                            // Show share link
-                            const shareLink = generateShareableLink(offer.share_token);
-
-                            Alert.alert(
-                                'Approved!',
-                                'The match offer has been approved. The host can now share it with other coaches.',
-                                [
-                                    {
-                                        text: 'Copy Share Link',
-                                        onPress: async () => {
-                                            await Clipboard.setStringAsync(shareLink);
-                                            Alert.alert('Copied!', 'Share link copied to clipboard');
-                                        }
-                                    },
-                                    { text: 'Done', onPress: () => router.push('/') }
-                                ]
-                            );
-                        } catch (e: any) {
-                            console.error(e);
-                            Alert.alert('Error', 'Failed to approve offer: ' + e.message);
-                        } finally {
-                            setProcessing(false);
-                        }
-                    },
-                },
-            ]
-        );
+    const showConfirm = (config: {
+        title: string;
+        message: string;
+        confirmText: string;
+        confirmStyle?: 'default' | 'destructive';
+        onConfirm: () => void;
+    }) => {
+        setConfirmModal({
+            visible: true,
+            ...config,
+        });
     };
 
-    const handleRejectOffer = async () => {
-        if (!approval || !offer) return;
+    const showAlert = (title: string, message: string, onClose?: () => void) => {
+        setAlertModal({ visible: true, title, message, onClose });
+    };
 
-        if (!decisionNotes.trim()) {
-            Alert.alert('Note Required', 'Please provide a reason for rejecting this offer.');
+    const handleApproveSlot = (slot: Slot) => {
+        showConfirm({
+            title: 'Approve This Slot',
+            message: `Are you sure you want to approve "${formatDateTime(slot.start_time)}"? This will confirm this time slot for the match.`,
+            confirmText: 'Approve',
+            onConfirm: async () => {
+                setConfirmModal(null);
+                setProcessing(slot.id);
+                try {
+                    // Update slot status to BOOKED
+                    const { error: slotError } = await supabase
+                        .from('slots')
+                        .update({ status: 'BOOKED' })
+                        .eq('id', slot.id);
+
+                    if (slotError) throw slotError;
+
+                    // Update local state
+                    setSlotStatuses(prev => ({ ...prev, [slot.id]: 'APPROVED' }));
+
+                    // Notify host
+                    if (offer?.host_contact) {
+                        await supabase.from('notifications').insert({
+                            recipient_email: offer.host_contact,
+                            recipient_type: 'HOST',
+                            notification_type: 'APPROVED',
+                            match_offer_id: offer.id,
+                            slot_id: slot.id,
+                            subject: 'Slot Approved!',
+                            message: `The slot on ${formatDateTime(slot.start_time)} has been approved.`,
+                            sent: false,
+                        });
+                    }
+
+                    showAlert('Approved!', `The slot "${formatDateTime(slot.start_time)}" has been approved.`);
+                } catch (e: any) {
+                    console.error(e);
+                    showAlert('Error', 'Failed to approve slot: ' + e.message);
+                } finally {
+                    setProcessing(null);
+                }
+            },
+        });
+    };
+
+    const handleRejectSlot = (slot: Slot) => {
+        showConfirm({
+            title: 'Reject This Slot',
+            message: `Are you sure you want to reject "${formatDateTime(slot.start_time)}"? This time slot will not be available for booking.`,
+            confirmText: 'Reject',
+            confirmStyle: 'destructive',
+            onConfirm: async () => {
+                setConfirmModal(null);
+                setProcessing(slot.id);
+                try {
+                    // Update slot status to REJECTED
+                    const { error: slotError } = await supabase
+                        .from('slots')
+                        .update({ status: 'REJECTED' })
+                        .eq('id', slot.id);
+
+                    if (slotError) throw slotError;
+
+                    // Update local state
+                    setSlotStatuses(prev => ({ ...prev, [slot.id]: 'REJECTED' }));
+
+                    // Notify host
+                    if (offer?.host_contact) {
+                        await supabase.from('notifications').insert({
+                            recipient_email: offer.host_contact,
+                            recipient_type: 'HOST',
+                            notification_type: 'REJECTED',
+                            match_offer_id: offer.id,
+                            slot_id: slot.id,
+                            subject: 'Slot Rejected',
+                            message: `The slot on ${formatDateTime(slot.start_time)} has been rejected.`,
+                            sent: false,
+                        });
+                    }
+
+                    showAlert('Rejected', `The slot "${formatDateTime(slot.start_time)}" has been rejected.`);
+                } catch (e: any) {
+                    console.error(e);
+                    showAlert('Error', 'Failed to reject slot: ' + e.message);
+                } finally {
+                    setProcessing(null);
+                }
+            },
+        });
+    };
+
+    const handleApproveAll = () => {
+        const pendingSlots = slots.filter(s => slotStatuses[s.id] === 'PENDING');
+        if (pendingSlots.length === 0) {
+            showAlert('No Pending Slots', 'All slots have already been processed.');
             return;
         }
 
-        Alert.alert(
-            'Reject Match Offer',
-            'This will prevent the host from sharing this match offer. Continue?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Reject',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setProcessing(true);
-                        try {
-                            // 1. Update approval status
-                            const { error: approvalError } = await supabase
-                                .from('approvals')
-                                .update({
-                                    status: 'REJECTED',
-                                    decision_at: new Date().toISOString(),
-                                    decision_notes: decisionNotes,
-                                })
-                                .eq('id', approval.id);
+        showConfirm({
+            title: 'Approve All Slots',
+            message: `This will approve all ${pendingSlots.length} pending slot(s). Continue?`,
+            confirmText: 'Approve All',
+            onConfirm: async () => {
+                setConfirmModal(null);
+                setProcessing('all');
+                try {
+                    // Update all pending slots to BOOKED
+                    const pendingIds = pendingSlots.map(s => s.id);
+                    const { error: slotError } = await supabase
+                        .from('slots')
+                        .update({ status: 'BOOKED' })
+                        .in('id', pendingIds);
 
-                            if (approvalError) throw approvalError;
+                    if (slotError) throw slotError;
 
-                            // 2. Update offer status to CANCELLED
-                            const { error: offerError } = await supabase
-                                .from('match_offers')
-                                .update({
-                                    status: 'CANCELLED',
-                                })
-                                .eq('id', offer.id);
+                    // Update approval status
+                    if (approval) {
+                        await supabase
+                            .from('approvals')
+                            .update({
+                                status: 'APPROVED',
+                                decision_at: new Date().toISOString(),
+                            })
+                            .eq('id', approval.id);
+                    }
 
-                            if (offerError) throw offerError;
+                    // Update offer status to OPEN
+                    if (offer) {
+                        await supabase
+                            .from('match_offers')
+                            .update({ status: 'OPEN' })
+                            .eq('id', offer.id);
+                    }
 
-                            // 3. Notify host
-                            if (offer.host_contact) {
-                                await supabase.from('notifications').insert({
-                                    recipient_email: offer.host_contact,
-                                    recipient_type: 'HOST',
-                                    notification_type: 'REJECTED',
-                                    match_offer_id: offer.id,
-                                    subject: 'Match Offer Not Approved',
-                                    message: `Your match offer was not approved. Reason: ${decisionNotes}`,
-                                    sent: false,
-                                });
+                    // Update local state
+                    const newStatuses = { ...slotStatuses };
+                    pendingIds.forEach(id => { newStatuses[id] = 'APPROVED'; });
+                    setSlotStatuses(newStatuses);
+
+                    // Generate share link
+                    const shareLink = offer ? generateShareableLink(offer.share_token) : '';
+
+                    showAlert('All Approved!', `All ${pendingSlots.length} slot(s) have been approved. The match offer is now ready to share.`,
+                        async () => {
+                            if (shareLink) {
+                                await Clipboard.setStringAsync(shareLink);
+                                showAlert('Link Copied!', 'Share link copied to clipboard.');
                             }
-
-                            Alert.alert(
-                                'Rejected',
-                                'The match offer has been rejected. The host has been notified.',
-                                [{ text: 'OK', onPress: () => router.push('/') }]
-                            );
-                        } catch (e: any) {
-                            console.error(e);
-                            Alert.alert('Error', 'Failed to reject offer: ' + e.message);
-                        } finally {
-                            setProcessing(false);
                         }
-                    },
-                },
-            ]
-        );
+                    );
+                } catch (e: any) {
+                    console.error(e);
+                    showAlert('Error', 'Failed to approve slots: ' + e.message);
+                } finally {
+                    setProcessing(null);
+                }
+            },
+        });
+    };
+
+    const handleRejectAll = () => {
+        const pendingSlots = slots.filter(s => slotStatuses[s.id] === 'PENDING');
+        if (pendingSlots.length === 0) {
+            showAlert('No Pending Slots', 'All slots have already been processed.');
+            return;
+        }
+
+        showConfirm({
+            title: 'Reject All Slots',
+            message: `This will reject all ${pendingSlots.length} pending slot(s) and cancel the match offer. Continue?`,
+            confirmText: 'Reject All',
+            confirmStyle: 'destructive',
+            onConfirm: async () => {
+                setConfirmModal(null);
+                setProcessing('all');
+                try {
+                    // Update all pending slots to REJECTED
+                    const pendingIds = pendingSlots.map(s => s.id);
+                    const { error: slotError } = await supabase
+                        .from('slots')
+                        .update({ status: 'REJECTED' })
+                        .in('id', pendingIds);
+
+                    if (slotError) throw slotError;
+
+                    // Update approval status
+                    if (approval) {
+                        await supabase
+                            .from('approvals')
+                            .update({
+                                status: 'REJECTED',
+                                decision_at: new Date().toISOString(),
+                            })
+                            .eq('id', approval.id);
+                    }
+
+                    // Update offer status to CANCELLED
+                    if (offer) {
+                        await supabase
+                            .from('match_offers')
+                            .update({ status: 'CANCELLED' })
+                            .eq('id', offer.id);
+                    }
+
+                    // Update local state
+                    const newStatuses = { ...slotStatuses };
+                    pendingIds.forEach(id => { newStatuses[id] = 'REJECTED'; });
+                    setSlotStatuses(newStatuses);
+
+                    showAlert('All Rejected', 'All slots have been rejected. The match offer has been cancelled.',
+                        () => router.push('/')
+                    );
+                } catch (e: any) {
+                    console.error(e);
+                    showAlert('Error', 'Failed to reject slots: ' + e.message);
+                } finally {
+                    setProcessing(null);
+                }
+            },
+        });
     };
 
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-GB', {
-            weekday: 'long',
+            weekday: 'short',
             day: 'numeric',
-            month: 'long',
+            month: 'short',
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    const getSlotStatusColor = (slotId: string) => {
+        const status = slotStatuses[slotId];
+        if (status === 'APPROVED') return Colors.light.success;
+        if (status === 'REJECTED') return Colors.light.error;
+        return Colors.light.primary;
+    };
+
+    const getSlotStatusIcon = (slotId: string) => {
+        const status = slotStatuses[slotId];
+        if (status === 'APPROVED') return 'checkmark-circle';
+        if (status === 'REJECTED') return 'close-circle';
+        return 'time-outline';
     };
 
     if (loading) {
@@ -258,39 +518,47 @@ export default function ApprovalScreen() {
         );
     }
 
-    if (approval.status !== 'PENDING') {
-        return (
-            <View style={styles.centerContainer}>
-                <Ionicons
-                    name={approval.status === 'APPROVED' ? 'checkmark-circle' : 'close-circle'}
-                    size={64}
-                    color={approval.status === 'APPROVED' ? Colors.light.success : Colors.light.error}
-                />
-                <Text style={styles.errorTitle}>Already Processed</Text>
-                <Text style={styles.errorSubtitle}>
-                    This request has already been {approval.status.toLowerCase()}.
-                </Text>
-                {approval.decision_notes && (
-                    <Card style={styles.decisionCard}>
-                        <Text style={styles.decisionLabel}>Decision Notes:</Text>
-                        <Text style={styles.decisionText}>{approval.decision_notes}</Text>
-                    </Card>
-                )}
-            </View>
-        );
-    }
+    const pendingCount = slots.filter(s => slotStatuses[s.id] === 'PENDING').length;
+    const approvedCount = slots.filter(s => slotStatuses[s.id] === 'APPROVED').length;
+    const rejectedCount = slots.filter(s => slotStatuses[s.id] === 'REJECTED').length;
 
-    // Render for OFFER approval (pre-share)
     return (
         <>
             <Stack.Screen options={{
-                title: 'Approve Match Offer',
+                title: 'Approve Match Slots',
                 headerTitleStyle: { fontWeight: '700', fontSize: 18 },
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background }
             }} />
 
             <AppBanner deepLink={`matchslot://approve/${token}`} />
+
+            {/* Confirmation Modal */}
+            {confirmModal && (
+                <ConfirmModal
+                    visible={confirmModal.visible}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    confirmText={confirmModal.confirmText}
+                    confirmStyle={confirmModal.confirmStyle}
+                    onConfirm={confirmModal.onConfirm}
+                    onCancel={() => setConfirmModal(null)}
+                />
+            )}
+
+            {/* Alert Modal */}
+            {alertModal && (
+                <AlertModal
+                    visible={alertModal.visible}
+                    title={alertModal.title}
+                    message={alertModal.message}
+                    onClose={() => {
+                        const onCloseCallback = alertModal.onClose;
+                        setAlertModal(null);
+                        if (onCloseCallback) onCloseCallback();
+                    }}
+                />
+            )}
 
             <View style={styles.container}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -299,11 +567,28 @@ export default function ApprovalScreen() {
                         <View style={styles.headerIcon}>
                             <Ionicons name="shield-checkmark" size={40} color={Colors.light.primary} />
                         </View>
-                        <Text style={styles.headerTitle}>Match Offer Approval</Text>
+                        <Text style={styles.headerTitle}>Match Slot Approval</Text>
                         <Text style={styles.headerSubtitle}>
-                            A coach wants to share this match offer with other teams. Please review and approve before sharing.
+                            Review and approve or reject each time slot individually.
+                            You can also use the bulk actions at the bottom.
                         </Text>
                     </Card>
+
+                    {/* Status Summary */}
+                    <View style={styles.statusSummary}>
+                        <View style={styles.statusBadge}>
+                            <Text style={[styles.statusCount, { color: Colors.light.primary }]}>{pendingCount}</Text>
+                            <Text style={styles.statusLabel}>Pending</Text>
+                        </View>
+                        <View style={styles.statusBadge}>
+                            <Text style={[styles.statusCount, { color: Colors.light.success }]}>{approvedCount}</Text>
+                            <Text style={styles.statusLabel}>Approved</Text>
+                        </View>
+                        <View style={styles.statusBadge}>
+                            <Text style={[styles.statusCount, { color: Colors.light.error }]}>{rejectedCount}</Text>
+                            <Text style={styles.statusLabel}>Rejected</Text>
+                        </View>
+                    </View>
 
                     {/* Host Details */}
                     <Text style={styles.sectionTitle}>Host Coach</Text>
@@ -318,15 +603,6 @@ export default function ApprovalScreen() {
                                 </Text>
                             </View>
                         </View>
-                        {offer.host_contact && (
-                            <View style={styles.detailRow}>
-                                <Ionicons name="call" size={24} color={Colors.light.primary} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>Contact</Text>
-                                    <Text style={styles.detailValue}>{offer.host_contact}</Text>
-                                </View>
-                            </View>
-                        )}
                     </Card>
 
                     {/* Match Details */}
@@ -357,52 +633,80 @@ export default function ApprovalScreen() {
                                 <Text style={styles.detailValue}>{offer.duration} minutes</Text>
                             </View>
                         </View>
-
-                        {offer.notes && (
-                            <View style={styles.detailRow}>
-                                <Ionicons name="document-text" size={24} color={Colors.light.primary} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>Notes</Text>
-                                    <Text style={styles.detailValue}>{offer.notes}</Text>
-                                </View>
-                            </View>
-                        )}
                     </Card>
 
-                    {/* Available Time Slots */}
-                    <Text style={styles.sectionTitle}>Available Time Slots</Text>
-                    {slots.map((slot, index) => (
-                        <Card key={slot.id} style={styles.slotCard}>
-                            <Ionicons name="calendar" size={20} color={Colors.light.primary} />
-                            <Text style={styles.slotText}>{formatDateTime(slot.start_time)}</Text>
-                        </Card>
-                    ))}
+                    {/* Time Slots with Individual Approve/Reject Buttons */}
+                    <Text style={styles.sectionTitle}>Time Slots</Text>
+                    {slots.map((slot) => {
+                        const status = slotStatuses[slot.id];
+                        const isProcessing = processing === slot.id || processing === 'all';
 
-                    {/* Decision Notes */}
-                    <Text style={styles.sectionTitle}>Your Decision</Text>
-                    <Input
-                        placeholder="Add notes (optional for approval, required for rejection)"
-                        value={decisionNotes}
-                        onChangeText={setDecisionNotes}
-                        multiline
-                        numberOfLines={4}
-                    />
+                        return (
+                            <Card key={slot.id} style={[
+                                styles.slotCard,
+                                status === 'APPROVED' && styles.slotApproved,
+                                status === 'REJECTED' && styles.slotRejected,
+                            ]}>
+                                <View style={styles.slotHeader}>
+                                    <Ionicons
+                                        name={getSlotStatusIcon(slot.id) as any}
+                                        size={24}
+                                        color={getSlotStatusColor(slot.id)}
+                                    />
+                                    <View style={styles.slotInfo}>
+                                        <Text style={styles.slotText}>{formatDateTime(slot.start_time)}</Text>
+                                        <Text style={[styles.slotStatus, { color: getSlotStatusColor(slot.id) }]}>
+                                            {status === 'APPROVED' ? 'Approved' : status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {status === 'PENDING' && (
+                                    <View style={styles.slotActions}>
+                                        {isProcessing ? (
+                                            <ActivityIndicator size="small" color={Colors.light.primary} />
+                                        ) : (
+                                            <>
+                                                <Pressable
+                                                    style={styles.rejectSlotButton}
+                                                    onPress={() => handleRejectSlot(slot)}
+                                                >
+                                                    <Ionicons name="close" size={18} color="#fff" />
+                                                    <Text style={styles.slotButtonText}>Deny</Text>
+                                                </Pressable>
+                                                <Pressable
+                                                    style={styles.approveSlotButton}
+                                                    onPress={() => handleApproveSlot(slot)}
+                                                >
+                                                    <Ionicons name="checkmark" size={18} color="#fff" />
+                                                    <Text style={styles.slotButtonText}>Approve</Text>
+                                                </Pressable>
+                                            </>
+                                        )}
+                                    </View>
+                                )}
+                            </Card>
+                        );
+                    })}
                 </ScrollView>
 
-                <View style={styles.footer}>
-                    <Button
-                        title="Reject"
-                        onPress={handleRejectOffer}
-                        loading={processing}
-                        style={styles.rejectButton}
-                    />
-                    <Button
-                        title="Approve"
-                        onPress={handleApproveOffer}
-                        loading={processing}
-                        style={styles.approveButton}
-                    />
-                </View>
+                {/* Bulk Actions Footer */}
+                {pendingCount > 0 && (
+                    <View style={styles.footer}>
+                        <Button
+                            title="Reject All"
+                            onPress={handleRejectAll}
+                            loading={processing === 'all'}
+                            style={styles.rejectButton}
+                        />
+                        <Button
+                            title="Approve All"
+                            onPress={handleApproveAll}
+                            loading={processing === 'all'}
+                            style={styles.approveButton}
+                        />
+                    </View>
+                )}
             </View>
         </>
     );
@@ -437,25 +741,10 @@ const styles = StyleSheet.create({
         marginTop: 8,
         textAlign: 'center',
     },
-    decisionCard: {
-        padding: 16,
-        marginTop: 16,
-        backgroundColor: '#F5F5F5',
-    },
-    decisionLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.light.text,
-        marginBottom: 8,
-    },
-    decisionText: {
-        fontSize: 14,
-        color: Colors.light.textSecondary,
-    },
     headerCard: {
         padding: 24,
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 16,
         backgroundColor: '#F0F9FF',
         borderColor: Colors.light.primary,
         borderWidth: 1,
@@ -476,6 +765,28 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 20,
     },
+    statusSummary: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 20,
+        paddingVertical: 16,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+    },
+    statusBadge: {
+        alignItems: 'center',
+    },
+    statusCount: {
+        fontSize: 24,
+        fontWeight: '700',
+    },
+    statusLabel: {
+        fontSize: 12,
+        color: Colors.light.textSecondary,
+        marginTop: 4,
+    },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
@@ -491,12 +802,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-start',
         gap: 12,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     detailLabel: {
         fontSize: 12,
         color: Colors.light.textSecondary,
-        marginBottom: 4,
+        marginBottom: 2,
         textTransform: 'uppercase',
         fontWeight: '600',
     },
@@ -506,16 +817,68 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     slotCard: {
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    slotApproved: {
+        borderColor: Colors.light.success,
+        backgroundColor: '#E8F5E9',
+    },
+    slotRejected: {
+        borderColor: Colors.light.error,
+        backgroundColor: '#FFEBEE',
+    },
+    slotHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        padding: 16,
-        marginBottom: 12,
+    },
+    slotInfo: {
+        flex: 1,
     },
     slotText: {
-        fontSize: 15,
+        fontSize: 16,
         color: Colors.light.text,
+        fontWeight: '600',
+    },
+    slotStatus: {
+        fontSize: 12,
         fontWeight: '500',
+        marginTop: 2,
+    },
+    slotActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: Colors.light.border,
+    },
+    approveSlotButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: Colors.light.success,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+    },
+    rejectSlotButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: Colors.light.error,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+    },
+    slotButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 14,
     },
     footer: {
         position: 'absolute',
