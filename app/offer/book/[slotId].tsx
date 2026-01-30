@@ -21,6 +21,7 @@ export default function BookSlotScreen() {
     const [offer, setOffer] = useState<MatchOffer | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
     // Form fields
     const [guestName, setGuestName] = useState('');
@@ -166,11 +167,8 @@ export default function BookSlotScreen() {
                 });
             }
 
-            Alert.alert(
-                'Booking Confirmed! 🎉',
-                `You've successfully booked a match with ${offer?.host_club || offer?.host_name}.\n\nDate: ${formatDateTime(slot!.start_time)}\nLocation: ${offer?.location}\n\nThe host will contact you to confirm details.`,
-                [{ text: 'OK', onPress: () => router.push('/') }]
-            );
+            // Show success screen instead of alert for better web UX
+            setBookingConfirmed(true);
         } catch (e: any) {
             console.error(e);
             Alert.alert('Error', 'Failed to book match: ' + e.message);
@@ -203,6 +201,68 @@ export default function BookSlotScreen() {
             <View style={styles.centerContainer}>
                 <Text style={styles.errorText}>Slot not found</Text>
             </View>
+        );
+    }
+
+    // Show confirmation screen after successful booking
+    if (bookingConfirmed) {
+        return (
+            <>
+                <Stack.Screen options={{
+                    title: 'Booking Confirmed',
+                    headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+                    headerBackVisible: false,
+                    headerShadowVisible: false,
+                    headerStyle: { backgroundColor: Colors.light.background }
+                }} />
+                <View style={styles.confirmationContainer}>
+                    <View style={styles.confirmationContent}>
+                        <View style={styles.successIcon}>
+                            <Ionicons name="checkmark-circle" size={80} color={Colors.light.success} />
+                        </View>
+                        <Text style={styles.confirmationTitle}>Match Confirmed! 🎉</Text>
+                        <Text style={styles.confirmationSubtitle}>
+                            You've successfully booked a match with {offer?.host_club || offer?.host_name}
+                        </Text>
+
+                        <Card style={styles.confirmationCard}>
+                            <View style={styles.confirmationDetail}>
+                                <Ionicons name="calendar-outline" size={20} color={Colors.light.primary} />
+                                <View style={styles.confirmationDetailText}>
+                                    <Text style={styles.confirmationLabel}>Date & Time</Text>
+                                    <Text style={styles.confirmationValue}>{formatDateTime(slot!.start_time)}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.confirmationDetail}>
+                                <Ionicons name="location-outline" size={20} color={Colors.light.primary} />
+                                <View style={styles.confirmationDetailText}>
+                                    <Text style={styles.confirmationLabel}>Location</Text>
+                                    <Text style={styles.confirmationValue}>{offer?.location}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.confirmationDetail}>
+                                <Ionicons name="shield-outline" size={20} color={Colors.light.primary} />
+                                <View style={styles.confirmationDetailText}>
+                                    <Text style={styles.confirmationLabel}>Host Team</Text>
+                                    <Text style={styles.confirmationValue}>{offer?.host_club || offer?.host_name}</Text>
+                                </View>
+                            </View>
+                        </Card>
+
+                        <Text style={styles.confirmationNote}>
+                            The host coach will contact you to finalize match details.
+                        </Text>
+
+                        <Button
+                            title="Done"
+                            onPress={() => router.push('/')}
+                            style={styles.doneButton}
+                        />
+                    </View>
+                </View>
+            </>
         );
     }
 
@@ -293,14 +353,14 @@ export default function BookSlotScreen() {
                     <Card style={styles.infoCard}>
                         <Ionicons name="information-circle-outline" size={24} color={Colors.light.primary} />
                         <Text style={styles.infoText}>
-                            An approval request will be sent to the club administrator. The booking will be confirmed once approved.
+                            Your match will be confirmed immediately. The host coach will receive a notification and can contact you to finalize details.
                         </Text>
                     </Card>
                 </ScrollView>
 
                 <View style={styles.footer}>
                     <Button
-                        title="Submit Booking Request"
+                        title="Confirm Match"
                         onPress={handleSubmit}
                         loading={submitting}
                     />
@@ -405,5 +465,73 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.light.background,
         borderTopWidth: 1,
         borderTopColor: Colors.light.border,
+    },
+    // Confirmation screen styles
+    confirmationContainer: {
+        flex: 1,
+        backgroundColor: Colors.light.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    confirmationContent: {
+        alignItems: 'center',
+        maxWidth: 400,
+        width: '100%',
+    },
+    successIcon: {
+        marginBottom: 16,
+    },
+    confirmationTitle: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: Colors.light.text,
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    confirmationSubtitle: {
+        fontSize: 16,
+        color: Colors.light.textSecondary,
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    confirmationCard: {
+        width: '100%',
+        padding: 20,
+        marginBottom: 24,
+        backgroundColor: '#F0F9FF',
+        borderColor: Colors.light.primary,
+        borderWidth: 1,
+    },
+    confirmationDetail: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        marginBottom: 16,
+    },
+    confirmationDetailText: {
+        flex: 1,
+    },
+    confirmationLabel: {
+        fontSize: 12,
+        color: Colors.light.textSecondary,
+        textTransform: 'uppercase',
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    confirmationValue: {
+        fontSize: 16,
+        color: Colors.light.text,
+        fontWeight: '600',
+    },
+    confirmationNote: {
+        fontSize: 14,
+        color: Colors.light.textSecondary,
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    doneButton: {
+        width: '100%',
     },
 });
