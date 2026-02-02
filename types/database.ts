@@ -1,6 +1,6 @@
 // Database Types for Football Match Booking App
 
-export type AgeGroup = 'U8' | 'U10' | 'U12' | 'U14' | 'U16' | 'U18' | 'Open';
+export type AgeGroup = 'U8' | 'U10' | 'U12' | 'U14' | 'U16' | 'U18' | 'Seniors' | '1st Team' | 'Reserve' | 'Open';
 
 export type MatchFormat = '5v5' | '7v7' | '9v9' | '11v11';
 
@@ -16,7 +16,9 @@ export type NotificationType =
   | 'OFFER_APPROVAL_REQUEST'
   | 'APPROVED'
   | 'REJECTED'
-  | 'OFFER_CLOSED';
+  | 'OFFER_CLOSED'
+  | 'APPROVAL_DECISION'
+  | 'MATCH_REMINDER_1H';
 
 export type RecipientType = 'HOST' | 'GUEST' | 'APPROVER';
 
@@ -67,6 +69,12 @@ export interface Slot {
   guest_club?: string;
   guest_contact?: string;
   guest_notes?: string;
+
+  // Match Results
+  home_score?: number;
+  away_score?: number;
+  result_notes?: string;
+  result_saved_at?: string;
 
   // Timestamps
   created_at: string;

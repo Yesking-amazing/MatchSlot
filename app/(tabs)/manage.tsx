@@ -3,16 +3,205 @@ import { Colors } from '@/constants/Colors';
 import { copyLinkToClipboard } from '@/lib/shareLink';
 import { getMyMatchIds, removeMyMatchId } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
-import { MatchOfferWithSlots, SlotStatus } from '@/types/database';
+import { MatchOfferWithSlots, Slot, SlotStatus } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+// Results Modal Component
+interface ResultsModalProps {
+    visible: boolean;
+    slot: Slot | null;
+    onClose: () => void;
+    onSave: (slotId: string, homeScore: number, awayScore: number, notes: string) => void;
+}
+
+function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
+    const [homeScore, setHomeScore] = useState('');
+    const [awayScore, setAwayScore] = useState('');
+    const [notes, setNotes] = useState('');
+
+    React.useEffect(() => {
+        if (slot) {
+            setHomeScore(slot.home_score?.toString() || '');
+            setAwayScore(slot.away_score?.toString() || '');
+            setNotes(slot.result_notes || '');
+        }
+    }, [slot]);
+
+    const handleSave = () => {
+        if (!slot) return;
+        const home = parseInt(homeScore) || 0;
+        const away = parseInt(awayScore) || 0;
+        onSave(slot.id, home, away, notes);
+    };
+
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <View style={modalStyles.overlay}>
+                <View style={modalStyles.container}>
+                    <Text style={modalStyles.title}>Save Match Result</Text>
+
+                    <View style={modalStyles.scoreRow}>
+                        <View style={modalStyles.scoreInput}>
+                            <Text style={modalStyles.scoreLabel}>Home</Text>
+                            <TextInput
+                                style={modalStyles.scoreField}
+                                value={homeScore}
+                                onChangeText={setHomeScore}
+                                keyboardType="number-pad"
+                                placeholder="0"
+                                maxLength={2}
+                            />
+                        </View>
+                        <Text style={modalStyles.scoreSeparator}>-</Text>
+                        <View style={modalStyles.scoreInput}>
+                            <Text style={modalStyles.scoreLabel}>Away</Text>
+                            <TextInput
+                                style={modalStyles.scoreField}
+                                value={awayScore}
+                                onChangeText={setAwayScore}
+                                keyboardType="number-pad"
+                                placeholder="0"
+                                maxLength={2}
+                            />
+                        </View>
+                    </View>
+
+                    <TextInput
+                        style={modalStyles.notesInput}
+                        value={notes}
+                        onChangeText={setNotes}
+                        placeholder="Match notes (optional)"
+                        multiline
+                        numberOfLines={3}
+                    />
+
+                    <View style={modalStyles.buttonRow}>
+                        <Pressable style={modalStyles.cancelButton} onPress={onClose}>
+                            <Text style={modalStyles.cancelText}>Cancel</Text>
+                        </Pressable>
+                        <Pressable style={modalStyles.saveButton} onPress={handleSave}>
+                            <Text style={modalStyles.saveText}>Save Result</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+const modalStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    container: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        maxWidth: 340,
+        width: '100%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: Colors.light.text,
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    scoreRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        marginBottom: 20,
+    },
+    scoreInput: {
+        alignItems: 'center',
+    },
+    scoreLabel: {
+        fontSize: 14,
+        color: Colors.light.textSecondary,
+        marginBottom: 8,
+        fontWeight: '500',
+    },
+    scoreField: {
+        width: 80,
+        height: 60,
+        fontSize: 32,
+        fontWeight: '700',
+        textAlign: 'center',
+        borderWidth: 2,
+        borderColor: Colors.light.border,
+        borderRadius: 12,
+        backgroundColor: Colors.light.background,
+    },
+    scoreSeparator: {
+        fontSize: 32,
+        fontWeight: '700',
+        color: Colors.light.text,
+    },
+    notesInput: {
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 16,
+        minHeight: 80,
+        textAlignVertical: 'top',
+        marginBottom: 20,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 12,
+    },
+    cancelButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        backgroundColor: '#E0E0E0',
+        minWidth: 100,
+    },
+    cancelText: {
+        fontSize: 16,
+        fontWeight: '500',
+        textAlign: 'center',
+        color: Colors.light.text,
+    },
+    saveButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        backgroundColor: Colors.light.primary,
+        minWidth: 100,
+    },
+    saveText: {
+        fontSize: 16,
+        fontWeight: '500',
+        textAlign: 'center',
+        color: '#fff',
+    },
+});
 
 export default function ManageScreen() {
     const [offers, setOffers] = useState<MatchOfferWithSlots[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Results modal state
+    const [resultsModalVisible, setResultsModalVisible] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
 
     const loadOffers = async () => {
         try {
@@ -114,6 +303,42 @@ export default function ManageScreen() {
         );
     };
 
+    const handleSaveResults = async (slotId: string, homeScore: number, awayScore: number, notes: string) => {
+        try {
+            const { error } = await supabase
+                .from('slots')
+                .update({
+                    home_score: homeScore,
+                    away_score: awayScore,
+                    result_notes: notes,
+                    result_saved_at: new Date().toISOString(),
+                })
+                .eq('id', slotId);
+
+            if (error) throw error;
+
+            Alert.alert('Success', 'Match result saved!');
+            setResultsModalVisible(false);
+            setSelectedSlot(null);
+            loadOffers();
+        } catch (e: any) {
+            Alert.alert('Error', 'Failed to save result: ' + e.message);
+        }
+    };
+
+    const openResultsModal = (slot: Slot) => {
+        setSelectedSlot(slot);
+        setResultsModalVisible(true);
+    };
+
+    const isMatchPast = (slot: Slot) => {
+        return new Date(slot.end_time) < new Date();
+    };
+
+    const canSaveResults = (slot: Slot) => {
+        return slot.status === 'BOOKED' && isMatchPast(slot);
+    };
+
     const getStatusColor = (status: SlotStatus) => {
         switch (status) {
             case 'OPEN':
@@ -178,6 +403,16 @@ export default function ManageScreen() {
 
     return (
         <View style={styles.container}>
+            <ResultsModal
+                visible={resultsModalVisible}
+                slot={selectedSlot}
+                onClose={() => {
+                    setResultsModalVisible(false);
+                    setSelectedSlot(null);
+                }}
+                onSave={handleSaveResults}
+            />
+
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
@@ -247,6 +482,23 @@ export default function ManageScreen() {
                                             <Text style={styles.guestClub}> - {slot.guest_club}</Text>
                                         )}
                                     </View>
+
+                                    {/* Show results or save results button */}
+                                    {slot.result_saved_at ? (
+                                        <View style={styles.resultBadge}>
+                                            <Text style={styles.resultText}>
+                                                {slot.home_score} - {slot.away_score}
+                                            </Text>
+                                        </View>
+                                    ) : canSaveResults(slot) && (
+                                        <TouchableOpacity
+                                            style={styles.saveResultButton}
+                                            onPress={() => openResultsModal(slot)}
+                                        >
+                                            <Ionicons name="create-outline" size={14} color={Colors.light.primary} />
+                                            <Text style={styles.saveResultText}>Result</Text>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             ))}
                         </View>
@@ -254,12 +506,20 @@ export default function ManageScreen() {
                         {/* Actions */}
                         <View style={styles.actions}>
                             {offer.status === 'PENDING_APPROVAL' ? (
-                                <View style={[styles.actionButton, styles.pendingButton]}>
-                                    <Ionicons name="hourglass-outline" size={20} color="#E65100" />
-                                    <Text style={[styles.actionButtonText, { color: '#E65100' }]}>
-                                        Waiting for Approver
-                                    </Text>
-                                </View>
+                                <>
+                                    <View style={[styles.actionButton, styles.pendingButton]}>
+                                        <Ionicons name="hourglass-outline" size={20} color="#E65100" />
+                                        <Text style={[styles.actionButtonText, { color: '#E65100' }]}>
+                                            Waiting for Approver
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, styles.closeButton]}
+                                        onPress={() => handleDeleteOffer(offer.id)}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
+                                    </TouchableOpacity>
+                                </>
                             ) : offer.status === 'OPEN' ? (
                                 <>
                                     <TouchableOpacity
@@ -281,12 +541,20 @@ export default function ManageScreen() {
                                     </TouchableOpacity>
                                 </>
                             ) : (
-                                <View style={[styles.actionButton, { borderColor: Colors.light.textSecondary }]}>
-                                    <Ionicons name="checkmark-done" size={20} color={Colors.light.textSecondary} />
-                                    <Text style={[styles.actionButtonText, { color: Colors.light.textSecondary }]}>
-                                        {offer.status === 'CLOSED' ? 'Match Booked' : 'Cancelled'}
-                                    </Text>
-                                </View>
+                                <>
+                                    <View style={[styles.actionButton, { borderColor: Colors.light.textSecondary }]}>
+                                        <Ionicons name="checkmark-done" size={20} color={Colors.light.textSecondary} />
+                                        <Text style={[styles.actionButtonText, { color: Colors.light.textSecondary }]}>
+                                            {offer.status === 'CLOSED' ? 'Match Booked' : 'Cancelled'}
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, styles.closeButton]}
+                                        onPress={() => handleDeleteOffer(offer.id)}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
+                                    </TouchableOpacity>
+                                </>
                             )}
                         </View>
                     </Card>
@@ -394,12 +662,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 8,
+        flexWrap: 'wrap',
+        gap: 8,
     },
     slotInfo: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
         flex: 1,
+        minWidth: 120,
     },
     slotTime: {
         fontSize: 14,
@@ -422,6 +693,32 @@ const styles = StyleSheet.create({
     guestClub: {
         fontSize: 13,
         color: Colors.light.textSecondary,
+    },
+    resultBadge: {
+        backgroundColor: Colors.light.primary,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    resultText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    saveResultButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: Colors.light.primary,
+    },
+    saveResultText: {
+        color: Colors.light.primary,
+        fontSize: 12,
+        fontWeight: '600',
     },
     actions: {
         flexDirection: 'row',
@@ -447,6 +744,8 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         borderColor: Colors.light.error,
+        flex: 0,
+        paddingHorizontal: 12,
     },
     pendingButton: {
         borderColor: '#E65100',

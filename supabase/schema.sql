@@ -53,6 +53,12 @@ CREATE TABLE slots (
     guest_contact TEXT,
     guest_notes TEXT,
     
+    -- Match Results
+    home_score INTEGER,
+    away_score INTEGER,
+    result_notes TEXT,
+    result_saved_at TIMESTAMPTZ,
+    
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

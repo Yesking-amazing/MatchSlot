@@ -12,7 +12,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as MailComposer from 'expo-mail-composer';
 import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Helper for the selection rows
 function SelectionRow({ icon, label, rightElement, onPress }: any) {
@@ -68,7 +68,7 @@ export default function CreateMatchScreen() {
 
     const [loading, setLoading] = useState(false);
 
-    const ageGroups: AgeGroup[] = ['U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'Open'];
+    const ageGroups: AgeGroup[] = ['U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'Seniors', '1st Team', 'Reserve', 'Open'];
     const formats: MatchFormat[] = ['5v5', '7v7', '9v9', '11v11'];
     const durations = [60, 70, 80, 90, 100, 120];
 
@@ -505,15 +505,29 @@ export default function CreateMatchScreen() {
                             {/* Date Picker */}
                             <View style={styles.dateTimeSection}>
                                 <Text style={styles.dateTimeLabel}>📅 Select Date</Text>
-                                <DateTimePicker
-                                    value={tempDate}
-                                    mode="date"
-                                    display="spinner"
-                                    onChange={(event, selectedDate) => {
-                                        if (selectedDate) setTempDate(selectedDate);
-                                    }}
-                                    minimumDate={new Date()}
-                                />
+                                {Platform.OS === 'web' ? (
+                                    <TextInput
+                                        style={styles.webDateInput}
+                                        value={tempDate.toISOString().split('T')[0]}
+                                        onChangeText={(text) => {
+                                            const newDate = new Date(text);
+                                            if (!isNaN(newDate.getTime())) {
+                                                setTempDate(newDate);
+                                            }
+                                        }}
+                                        placeholder="YYYY-MM-DD"
+                                    />
+                                ) : (
+                                    <DateTimePicker
+                                        value={tempDate}
+                                        mode="date"
+                                        display="spinner"
+                                        onChange={(event, selectedDate) => {
+                                            if (selectedDate) setTempDate(selectedDate);
+                                        }}
+                                        minimumDate={new Date()}
+                                    />
+                                )}
                             </View>
 
                             {/* Start Time Picker */}
@@ -522,20 +536,44 @@ export default function CreateMatchScreen() {
                                 <Text style={styles.dateTimeHint}>
                                     End time will be {duration} minutes after start time
                                 </Text>
-                                <DateTimePicker
-                                    value={tempStartTime}
-                                    mode="time"
-                                    display="spinner"
-                                    onChange={(event, selectedTime) => {
-                                        if (selectedTime) {
-                                            setTempStartTime(selectedTime);
-                                            // Auto-calculate end time
-                                            const end = new Date(selectedTime);
-                                            end.setMinutes(end.getMinutes() + duration);
-                                            setTempEndTime(end);
-                                        }
-                                    }}
-                                />
+                                {Platform.OS === 'web' ? (
+                                    <TextInput
+                                        style={styles.webDateInput}
+                                        value={`${tempStartTime.getHours().toString().padStart(2, '0')}:${tempStartTime.getMinutes().toString().padStart(2, '0')}`}
+                                        onChangeText={(text) => {
+                                            const parts = text.split(':');
+                                            if (parts.length === 2) {
+                                                const hours = parseInt(parts[0]);
+                                                const minutes = parseInt(parts[1]);
+                                                if (!isNaN(hours) && !isNaN(minutes)) {
+                                                    const newTime = new Date(tempStartTime);
+                                                    newTime.setHours(hours, minutes, 0, 0);
+                                                    setTempStartTime(newTime);
+                                                    // Auto-calculate end time
+                                                    const end = new Date(newTime);
+                                                    end.setMinutes(end.getMinutes() + duration);
+                                                    setTempEndTime(end);
+                                                }
+                                            }
+                                        }}
+                                        placeholder="HH:MM"
+                                    />
+                                ) : (
+                                    <DateTimePicker
+                                        value={tempStartTime}
+                                        mode="time"
+                                        display="spinner"
+                                        onChange={(event, selectedTime) => {
+                                            if (selectedTime) {
+                                                setTempStartTime(selectedTime);
+                                                // Auto-calculate end time
+                                                const end = new Date(selectedTime);
+                                                end.setMinutes(end.getMinutes() + duration);
+                                                setTempEndTime(end);
+                                            }
+                                        }}
+                                    />
+                                )}
                             </View>
                         </ScrollView>
 
@@ -794,6 +832,18 @@ const styles = StyleSheet.create({
         color: Colors.light.text,
         fontSize: 16,
         fontWeight: '600',
+    },
+    webDateInput: {
+        backgroundColor: Colors.light.background,
+        borderWidth: 2,
+        borderColor: Colors.light.primary,
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 18,
+        fontWeight: '600',
+        textAlign: 'center',
+        color: Colors.light.text,
+        marginTop: 12,
     },
 
     footer: {
