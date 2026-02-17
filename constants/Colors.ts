@@ -1,41 +1,71 @@
 /**
- * Below are the colors that are used in the app.
+ * MatchSlot Design System — Dark Sports Premium
+ * Deep navy backgrounds, emerald green accents, glassmorphism.
  */
 
-const tintColorLight = '#5E7CE2'; // Primary Blue from screenshot
-const tintColorDark = '#fff';
+const emerald = '#10B981';
+const emeraldDark = '#059669';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#F8F9FA', // Light grey background
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-    primary: '#5E7CE2', // The main button/border color
-    secondary: '#EBF1FF', // Light blue background for selected items
-    border: '#E6E8EB',
-    card: '#FFFFFF',
-    textSecondary: '#687076', // Muted text
-    success: '#3FB950', // For "Open" status
-    warning: '#F5A623', // For "Pending" / "Held"
-    error: '#D32F2F', // For "Booked" or Closed
+    // Backgrounds
+    text: '#F1F5F9',
+    background: '#0A1628',
+    backgroundAlt: '#0F1D32',     // Slightly lighter for layering
+    tint: emerald,
+    icon: 'rgba(255,255,255,0.5)',
+    tabIconDefault: 'rgba(255,255,255,0.35)',
+    tabIconSelected: emerald,
+
+    // Brand
+    primary: emerald,
+    primaryDark: emeraldDark,
+    secondary: 'rgba(16,185,129,0.12)',  // Translucent green
+    accent: '#34D399',                    // Lighter green for highlights
+
+    // Surfaces
+    card: 'rgba(255,255,255,0.06)',
+    cardBorder: 'rgba(255,255,255,0.08)',
+    cardElevated: 'rgba(255,255,255,0.10)',
+
+    // Text
+    textSecondary: 'rgba(255,255,255,0.50)',
+    textTertiary: 'rgba(255,255,255,0.30)',
+
+    // Borders & Dividers
+    border: 'rgba(255,255,255,0.08)',
+
+    // Status
+    success: '#34D399',
+    warning: '#FBBF24',
+    error: '#F87171',
+
+    // Glow / Shadows
+    glow: 'rgba(16,185,129,0.25)',
+    shadow: 'rgba(0,0,0,0.4)',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-    primary: '#5E7CE2',
-    secondary: '#2C3550',
-    border: '#3E4451',
-    card: '#24272e',
-    textSecondary: '#9BA1A6',
-    success: '#3FB950',
-    warning: '#F5A623',
-    error: '#EF5350',
+    text: '#F1F5F9',
+    background: '#0A1628',
+    backgroundAlt: '#0F1D32',
+    tint: emerald,
+    icon: 'rgba(255,255,255,0.5)',
+    tabIconDefault: 'rgba(255,255,255,0.35)',
+    tabIconSelected: emerald,
+    primary: emerald,
+    primaryDark: emeraldDark,
+    secondary: 'rgba(16,185,129,0.12)',
+    accent: '#34D399',
+    card: 'rgba(255,255,255,0.06)',
+    cardBorder: 'rgba(255,255,255,0.08)',
+    cardElevated: 'rgba(255,255,255,0.10)',
+    textSecondary: 'rgba(255,255,255,0.50)',
+    textTertiary: 'rgba(255,255,255,0.30)',
+    border: 'rgba(255,255,255,0.08)',
+    success: '#34D399',
+    warning: '#FBBF24',
+    error: '#F87171',
+    glow: 'rgba(16,185,129,0.25)',
+    shadow: 'rgba(0,0,0,0.4)',
   },
 };

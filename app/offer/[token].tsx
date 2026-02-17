@@ -112,7 +112,7 @@ export default function OfferViewScreen() {
                 return Colors.light.success;
             case 'HELD':
             case 'PENDING_APPROVAL':
-                return '#FFA500';
+                return Colors.light.warning;
             case 'BOOKED':
                 return Colors.light.primary;
             default:
@@ -182,10 +182,11 @@ export default function OfferViewScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Match Offer',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
                 headerBackTitleVisible: false,
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background }
+                headerStyle: { backgroundColor: Colors.light.background },
+                headerTintColor: Colors.light.text,
             }} />
 
             <AppBanner deepLink={`matchslot://offer/${token}`} />
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: '#E3F2FD',
+        backgroundColor: Colors.light.secondary,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     closedBadge: {
-        backgroundColor: '#FFEBEE',
+        backgroundColor: 'rgba(248,113,113,0.15)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 12,
@@ -383,7 +384,7 @@ const styles = StyleSheet.create({
     closedBadgeText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#C62828',
+        color: Colors.light.error,
     },
     detailsGrid: {
         gap: 16,

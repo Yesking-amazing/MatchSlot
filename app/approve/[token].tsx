@@ -90,7 +90,7 @@ const modalStyles = StyleSheet.create({
         padding: 20,
     },
     container: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.light.backgroundAlt,
         borderRadius: 16,
         padding: 24,
         maxWidth: 340,
@@ -124,7 +124,7 @@ const modalStyles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 8,
-        backgroundColor: '#E0E0E0',
+        backgroundColor: 'rgba(255,255,255,0.1)',
         minWidth: 80,
     },
     cancelText: {
@@ -555,9 +555,10 @@ export default function ApprovalScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Approve Match Slots',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background }
+                headerStyle: { backgroundColor: Colors.light.background },
+                headerTintColor: Colors.light.text,
             }} />
 
             <AppBanner deepLink={`matchslot://approve/${token}`} />
@@ -774,7 +775,7 @@ const styles = StyleSheet.create({
         padding: 24,
         alignItems: 'center',
         marginBottom: 16,
-        backgroundColor: '#F0F9FF',
+        backgroundColor: Colors.light.secondary,
         borderColor: Colors.light.primary,
         borderWidth: 1,
     },
@@ -799,7 +800,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
         marginBottom: 20,
         paddingVertical: 16,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.light.card,
         borderRadius: 12,
         borderWidth: 1,
         borderColor: Colors.light.border,
@@ -853,11 +854,11 @@ const styles = StyleSheet.create({
     },
     slotApproved: {
         borderColor: Colors.light.success,
-        backgroundColor: '#E8F5E9',
+        backgroundColor: 'rgba(16,185,129,0.08)',
     },
     slotRejected: {
         borderColor: Colors.light.error,
-        backgroundColor: '#FFEBEE',
+        backgroundColor: 'rgba(248,113,113,0.08)',
     },
     slotHeader: {
         flexDirection: 'row',

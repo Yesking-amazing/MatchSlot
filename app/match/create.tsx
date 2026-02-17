@@ -259,9 +259,10 @@ export default function CreateMatchScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Create Match Offer',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background }
+                headerStyle: { backgroundColor: Colors.light.background },
+                headerTintColor: Colors.light.text,
             }} />
 
             <View style={styles.container}>
@@ -686,15 +687,17 @@ const styles = StyleSheet.create({
     // Modal Styles
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.7)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.light.backgroundAlt,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         padding: 20,
         maxHeight: '70%',
+        borderTopWidth: 1,
+        borderTopColor: Colors.light.cardBorder,
     },
     modalTitle: {
         fontSize: 20,
@@ -704,11 +707,13 @@ const styles = StyleSheet.create({
     },
     // Date/Time Modal Styles
     dateTimeModalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.light.backgroundAlt,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         maxHeight: '80%',
         height: '80%',
+        borderTopWidth: 1,
+        borderTopColor: Colors.light.cardBorder,
     },
     dateTimeModalHeader: {
         flexDirection: 'row',
@@ -730,7 +735,7 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         borderTopWidth: 1,
         borderTopColor: Colors.light.border,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.light.backgroundAlt,
     },
     modalOption: {
         flexDirection: 'row',
@@ -770,7 +775,7 @@ const styles = StyleSheet.create({
         padding: 16,
         marginTop: 16,
         marginBottom: 8,
-        backgroundColor: '#F0F9FF',
+        backgroundColor: Colors.light.secondary,
         borderColor: Colors.light.primary,
         borderWidth: 1,
         alignItems: 'center',

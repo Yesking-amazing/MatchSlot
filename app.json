@@ -2,7 +2,7 @@
   "expo": {
     "name": "MatchSlot",
     "slug": "MatchSlot",
-    "version": "1.0.0",
+    "version": "1.9.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "matchslot",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.matchslot.app",
-      "buildNumber": "1",
+      "buildNumber": "9",
       "infoPlist": {
         "NSCameraUsageDescription": "This app does not use the camera.",
         "NSPhotoLibraryUsageDescription": "This app does not access your photos.",
@@ -43,7 +43,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "16.0"
+            "deploymentTarget": "17.0"
           }
         }
       ]

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Results Modal Component
 interface ResultsModalProps {
@@ -95,21 +96,23 @@ function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
 const modalStyles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
     container: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.light.backgroundAlt,
         borderRadius: 16,
         padding: 24,
         maxWidth: 340,
         width: '100%',
+        borderWidth: 1,
+        borderColor: Colors.light.cardBorder,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
         elevation: 8,
     },
     title: {
@@ -141,10 +144,11 @@ const modalStyles = StyleSheet.create({
         fontSize: 32,
         fontWeight: '700',
         textAlign: 'center',
-        borderWidth: 2,
+        color: Colors.light.text,
+        borderWidth: 1,
         borderColor: Colors.light.border,
         borderRadius: 12,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors.light.card,
     },
     scoreSeparator: {
         fontSize: 32,
@@ -157,9 +161,11 @@ const modalStyles = StyleSheet.create({
         borderRadius: 12,
         padding: 12,
         fontSize: 16,
+        color: Colors.light.text,
         minHeight: 80,
         textAlignVertical: 'top',
         marginBottom: 20,
+        backgroundColor: Colors.light.card,
     },
     buttonRow: {
         flexDirection: 'row',
@@ -170,14 +176,14 @@ const modalStyles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 8,
-        backgroundColor: '#E0E0E0',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         minWidth: 100,
     },
     cancelText: {
         fontSize: 16,
         fontWeight: '500',
         textAlign: 'center',
-        color: Colors.light.text,
+        color: Colors.light.textSecondary,
     },
     saveButton: {
         paddingVertical: 12,
@@ -185,10 +191,14 @@ const modalStyles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: Colors.light.primary,
         minWidth: 100,
+        shadowColor: Colors.light.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
     },
     saveText: {
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '600',
         textAlign: 'center',
         color: '#fff',
     },
@@ -385,24 +395,24 @@ export default function ManageScreen() {
 
     if (loading) {
         return (
-            <View style={styles.centerContainer}>
+            <SafeAreaView style={styles.centerContainer} edges={['top']}>
                 <ActivityIndicator size="large" color={Colors.light.primary} />
-            </View>
+            </SafeAreaView>
         );
     }
 
     if (offers.length === 0) {
         return (
-            <View style={styles.centerContainer}>
+            <SafeAreaView style={styles.centerContainer} edges={['top']}>
                 <Ionicons name="football-outline" size={64} color={Colors.light.textSecondary} />
                 <Text style={styles.emptyTitle}>No Match Offers Yet</Text>
                 <Text style={styles.emptySubtitle}>Create your first match offer to get started</Text>
-            </View>
+            </SafeAreaView>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <ResultsModal
                 visible={resultsModalVisible}
                 slot={selectedSlot}
@@ -440,12 +450,12 @@ export default function ManageScreen() {
                                 </Text>
                             </View>
                             <View style={[styles.statusBadge, {
-                                backgroundColor: offer.status === 'OPEN' ? '#E8F5E9' :
-                                    offer.status === 'PENDING_APPROVAL' ? '#FFF3E0' : '#FFEBEE'
+                                backgroundColor: offer.status === 'OPEN' ? 'rgba(52,211,153,0.15)' :
+                                    offer.status === 'PENDING_APPROVAL' ? 'rgba(251,191,36,0.15)' : 'rgba(248,113,113,0.15)'
                             }]}>
                                 <Text style={[styles.statusText, {
-                                    color: offer.status === 'OPEN' ? '#2E7D32' :
-                                        offer.status === 'PENDING_APPROVAL' ? '#E65100' : '#C62828'
+                                    color: offer.status === 'OPEN' ? Colors.light.success :
+                                        offer.status === 'PENDING_APPROVAL' ? Colors.light.warning : Colors.light.error
                                 }]}>
                                     {offer.status === 'PENDING_APPROVAL' ? 'AWAITING APPROVAL' : offer.status}
                                 </Text>
@@ -508,8 +518,8 @@ export default function ManageScreen() {
                             {offer.status === 'PENDING_APPROVAL' ? (
                                 <>
                                     <View style={[styles.actionButton, styles.pendingButton]}>
-                                        <Ionicons name="hourglass-outline" size={20} color="#E65100" />
-                                        <Text style={[styles.actionButtonText, { color: '#E65100' }]}>
+                                        <Ionicons name="hourglass-outline" size={20} color={Colors.light.warning} />
+                                        <Text style={[styles.actionButtonText, { color: Colors.light.warning }]}>
                                             Waiting for Approver
                                         </Text>
                                     </View>
@@ -560,7 +570,7 @@ export default function ManageScreen() {
                     </Card>
                 ))}
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -733,7 +743,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderRadius: 12,
-        backgroundColor: Colors.light.background,
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderWidth: 1,
         borderColor: Colors.light.primary,
     },
@@ -748,8 +758,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
     },
     pendingButton: {
-        borderColor: '#E65100',
-        backgroundColor: '#FFF3E0',
+        borderColor: Colors.light.warning,
+        backgroundColor: 'rgba(251,191,36,0.08)',
     },
     closeButtonText: {
         color: Colors.light.error,

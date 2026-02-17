@@ -270,10 +270,11 @@ export default function BookSlotScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Book Slot',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
                 headerBackTitleVisible: false,
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background }
+                headerStyle: { backgroundColor: Colors.light.background },
+                headerTintColor: Colors.light.text,
             }} />
 
             <AppBanner deepLink={`matchslot://offer/book/${slotId}`} />
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
     summaryCard: {
         padding: 20,
         marginBottom: 24,
-        backgroundColor: '#F0F9FF',
+        backgroundColor: Colors.light.secondary,
         borderColor: Colors.light.primary,
         borderWidth: 1,
     },
@@ -446,8 +447,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         padding: 16,
         gap: 12,
-        backgroundColor: '#FFF9E6',
-        borderColor: '#FFD700',
+        backgroundColor: 'rgba(251,191,36,0.08)',
+        borderColor: 'rgba(251,191,36,0.3)',
         borderWidth: 1,
     },
     infoText: {
@@ -499,7 +500,7 @@ const styles = StyleSheet.create({
         width: '100%',
         padding: 20,
         marginBottom: 24,
-        backgroundColor: '#F0F9FF',
+        backgroundColor: Colors.light.secondary,
         borderColor: Colors.light.primary,
         borderWidth: 1,
     },

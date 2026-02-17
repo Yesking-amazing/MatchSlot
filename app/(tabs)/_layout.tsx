@@ -11,13 +11,18 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.tint,
+        tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.tabIconDefault,
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.card,
+          backgroundColor: theme.backgroundAlt,
           borderTopColor: theme.border,
-        }
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontWeight: '600',
+          fontSize: 11,
+        },
       }}>
       <Tabs.Screen
         name="index"
@@ -29,10 +34,6 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 
-         We are hiding the "match" stack from the tab bar 
-         but we could have a "Manage" tab
-      */}
       <Tabs.Screen
         name="manage"
         options={{

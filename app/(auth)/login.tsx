@@ -46,10 +46,15 @@ export default function LoginScreen() {
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
             >
+                {/* Decorative top glow */}
+                <View style={styles.glowCircle} />
+
                 <View style={styles.header}>
-                    <Text style={styles.logo}>⚽</Text>
+                    <View style={styles.logoContainer}>
+                        <Text style={styles.logo}>⚽</Text>
+                    </View>
                     <Text style={styles.title}>MatchSlot</Text>
-                    <Text style={styles.subtitle}>Sign in to your account</Text>
+                    <Text style={styles.subtitle}>Schedule matches effortlessly</Text>
                 </View>
 
                 <View style={styles.form}>
@@ -111,19 +116,45 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         padding: 24,
     },
+    glowCircle: {
+        position: 'absolute',
+        top: -80,
+        alignSelf: 'center',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        backgroundColor: Colors.light.glow,
+        opacity: 0.4,
+    },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 48,
+    },
+    logoContainer: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        backgroundColor: Colors.light.secondary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: Colors.light.primary,
+        shadowColor: Colors.light.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 8,
     },
     logo: {
-        fontSize: 64,
-        marginBottom: 16,
+        fontSize: 44,
     },
     title: {
-        fontSize: 32,
-        fontWeight: '700',
+        fontSize: 36,
+        fontWeight: '800',
         color: Colors.light.text,
         marginBottom: 8,
+        letterSpacing: -0.5,
     },
     subtitle: {
         fontSize: 16,
@@ -133,12 +164,12 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     errorContainer: {
-        backgroundColor: '#FDECEA',
+        backgroundColor: 'rgba(248,113,113,0.12)',
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: Colors.light.error,
+        borderColor: 'rgba(248,113,113,0.3)',
     },
     errorText: {
         color: Colors.light.error,
@@ -151,7 +182,7 @@ const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: 24,
+        marginTop: 28,
     },
     footerText: {
         color: Colors.light.textSecondary,
@@ -160,6 +191,6 @@ const styles = StyleSheet.create({
     linkText: {
         color: Colors.light.primary,
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '700',
     },
 });
