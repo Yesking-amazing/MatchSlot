@@ -1,5 +1,10 @@
+import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { HomeSkeleton } from '@/components/ui/SkeletonLoader';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
 import { getMyMatchIds } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots } from '@/types/database';
@@ -7,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface DashboardStats {
@@ -17,6 +23,9 @@ interface DashboardStats {
 }
 
 export default function HomeScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const styles = getStyles(colorScheme);
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({ totalOffers: 0, activeOffers: 0, bookedSlots: 0 });
   const [upcomingSlots, setUpcomingSlots] = useState<any[]>([]);
   const [recentOffers, setRecentOffers] = useState<MatchOfferWithSlots[]>([]);
@@ -32,7 +41,8 @@ export default function HomeScreen() {
 
   const loadDashboard = async () => {
     try {
-      const myMatchIds = await getMyMatchIds();
+      if (!user) { setLoading(false); setRefreshing(false); return; }
+      const myMatchIds = await getMyMatchIds(user.id);
 
       if (myMatchIds.length === 0) {
         setStats({ totalOffers: 0, activeOffers: 0, bookedSlots: 0 });
@@ -108,11 +118,11 @@ export default function HomeScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'OPEN': return Colors.light.success;
-      case 'PENDING_APPROVAL': return Colors.light.warning;
-      case 'BOOKED': return Colors.light.primary;
-      case 'CLOSED': return Colors.light.textSecondary;
-      default: return Colors.light.textSecondary;
+      case 'OPEN': return Colors[colorScheme].success;
+      case 'PENDING_APPROVAL': return Colors[colorScheme].warning;
+      case 'BOOKED': return Colors[colorScheme].primary;
+      case 'CLOSED': return Colors[colorScheme].textSecondary;
+      default: return Colors[colorScheme].textSecondary;
     }
   };
 
@@ -128,8 +138,8 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
-        <ActivityIndicator size="large" color={Colors.light.primary} />
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <HomeSkeleton />
       </SafeAreaView>
     );
   }
@@ -140,237 +150,310 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors[colorScheme].primary} />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>{getGreeting()}, Coach ⚽</Text>
-          <Text style={styles.subtitle}>Your match activity at a glance</Text>
+        {/* ── Hero Band ── */}
+        <View style={styles.heroBand}>
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+            <Text style={styles.greeting}>{getGreeting()}, Coach</Text>
+            <Text style={styles.subtitle}>Here's what's happening</Text>
+          </Animated.View>
+
+          {/* Stats Row — Redesigned with large numbers */}
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(27,139,78,0.15)' }]}>
+                <Ionicons name="football" size={18} color={Colors[colorScheme].primary} />
+              </View>
+              <Text style={styles.statValue}>{stats.totalOffers}</Text>
+              <Text style={styles.statLabel}>Matches Created</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(245,158,11,0.15)' }]}>
+                <Ionicons name="pulse" size={18} color={Colors[colorScheme].warning} />
+              </View>
+              <Text style={styles.statValue}>{stats.activeOffers}</Text>
+              <Text style={styles.statLabel}>Open Now</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
+                <Ionicons name="checkmark-circle" size={18} color={Colors[colorScheme].success} />
+              </View>
+              <Text style={styles.statValue}>{stats.bookedSlots}</Text>
+              <Text style={styles.statLabel}>Confirmed</Text>
+            </View>
+          </Animated.View>
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.statCardGreen]}>
-            <View style={[styles.statIconCircle, { backgroundColor: 'rgba(16,185,129,0.25)' }]}>
-              <Ionicons name="football" size={18} color={Colors.light.primary} />
+        {/* ── Body ── */}
+        <View style={styles.body}>
+
+          {/* Quick Actions */}
+          <Animated.View entering={FadeInDown.delay(300).springify()}>
+            <SectionTitle label="Quick Actions" colorScheme={colorScheme} />
+            <View style={styles.actionsRow}>
+              <AnimatedPressable style={styles.actionCard} onPress={() => router.push('/match/create')} scaleTo={0.93}>
+                <View style={styles.actionIconCircle}>
+                  <Ionicons name="add" size={26} color="#fff" />
+                </View>
+                <Text style={styles.actionText}>Create Offer</Text>
+                <Text style={styles.actionSubtext}>New match slot</Text>
+              </AnimatedPressable>
+
+              <AnimatedPressable style={styles.actionCard} onPress={() => router.push('/(tabs)/manage')} scaleTo={0.93}>
+                <View style={styles.actionIconCircle}>
+                  <Ionicons name="list" size={26} color="#fff" />
+                </View>
+                <Text style={styles.actionText}>My Matches</Text>
+                <Text style={styles.actionSubtext}>View & manage</Text>
+              </AnimatedPressable>
             </View>
-            <Text style={styles.statNumber}>{stats.totalOffers}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
+          </Animated.View>
 
-          <View style={[styles.statCard, styles.statCardAmber]}>
-            <View style={[styles.statIconCircle, { backgroundColor: 'rgba(251,191,36,0.2)' }]}>
-              <Ionicons name="pulse" size={18} color={Colors.light.warning} />
-            </View>
-            <Text style={styles.statNumber}>{stats.activeOffers}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
+          {/* Upcoming Matches */}
+          <Animated.View entering={FadeInDown.delay(400).springify()}>
+            <SectionTitle
+              label="Upcoming Matches"
+              colorScheme={colorScheme}
+              count={upcomingSlots.length > 0 ? upcomingSlots.length : undefined}
+              onSeeAll={upcomingSlots.length > 0 ? () => router.push('/(tabs)/manage') : undefined}
+            />
+          </Animated.View>
 
-          <View style={[styles.statCard, styles.statCardBlue]}>
-            <View style={[styles.statIconCircle, { backgroundColor: 'rgba(96,165,250,0.2)' }]}>
-              <Ionicons name="checkmark-circle" size={18} color="#60A5FA" />
-            </View>
-            <Text style={styles.statNumber}>{stats.bookedSlots}</Text>
-            <Text style={styles.statLabel}>Booked</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/match/create')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionIconCircle}>
-              <Ionicons name="add-circle" size={28} color={Colors.light.primary} />
-            </View>
-            <Text style={styles.actionText}>Create Offer</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/(tabs)/manage')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionIconCircle}>
-              <Ionicons name="list" size={28} color={Colors.light.primary} />
-            </View>
-            <Text style={styles.actionText}>My Matches</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Upcoming Matches */}
-        <Text style={styles.sectionTitle}>Upcoming Matches</Text>
-        {upcomingSlots.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="calendar-outline" size={32} color={Colors.light.textSecondary} />
-            <Text style={styles.emptyText}>No upcoming matches</Text>
-            <Text style={styles.emptySubtext}>Create a match offer to get started</Text>
-          </Card>
-        ) : (
-          upcomingSlots.map((slot) => {
-            const { date, time } = formatDateTime(slot.start_time);
-            const endTime = formatDateTime(slot.end_time).time;
-            const matchInfo = slot.match_offers;
-
-            return (
-              <Card key={slot.id} style={styles.upcomingCard}>
-                <View style={styles.upcomingRow}>
-                  <View style={styles.upcomingDateBadge}>
-                    <Text style={styles.upcomingDateText}>{date}</Text>
-                  </View>
-                  <View style={styles.upcomingInfo}>
-                    <Text style={styles.upcomingTitle}>
-                      {matchInfo?.age_group} • {matchInfo?.format}
-                    </Text>
-                    <View style={styles.upcomingMeta}>
-                      <Ionicons name="time-outline" size={14} color={Colors.light.textSecondary} />
-                      <Text style={styles.upcomingMetaText}>{time} - {endTime}</Text>
+          {upcomingSlots.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="calendar-outline" size={36} color={Colors[colorScheme].primary} />
+              </View>
+              <Text style={styles.emptyText}>No upcoming matches</Text>
+              <Text style={styles.emptySubtext}>Create a match offer and share it with other coaches to schedule your next game</Text>
+              <Button
+                title="Create Your First Match"
+                onPress={() => router.push('/match/create')}
+                variant="secondary"
+                style={{ marginTop: 8 }}
+              />
+            </Card>
+          ) : (
+            upcomingSlots.map((slot, index) => {
+              const { date, time } = formatDateTime(slot.start_time);
+              const endTime = formatDateTime(slot.end_time).time;
+              const matchInfo = slot.match_offers;
+              return (
+                <Animated.View key={slot.id} entering={FadeInUp.delay(400 + index * 100).springify()}>
+                  <Card style={styles.upcomingCard}>
+                    <View style={styles.upcomingRow}>
+                      <View style={styles.upcomingDateBadge}>
+                        <Text style={styles.upcomingDateText}>{date}</Text>
+                      </View>
+                      <View style={styles.upcomingInfo}>
+                        <Text style={styles.upcomingTitle}>{matchInfo?.age_group} • {matchInfo?.format}</Text>
+                        <View style={styles.upcomingMeta}>
+                          <Ionicons name="time-outline" size={14} color={Colors[colorScheme].textSecondary} />
+                          <Text style={styles.upcomingMetaText}>{time} – {endTime}</Text>
+                        </View>
+                        <View style={styles.upcomingMeta}>
+                          <Ionicons name="location-outline" size={14} color={Colors[colorScheme].textSecondary} />
+                          <Text style={styles.upcomingMetaText} numberOfLines={1}>{matchInfo?.location}</Text>
+                        </View>
+                      </View>
+                      <View style={[styles.statusDot, { backgroundColor: getStatusColor(slot.status) }]} />
                     </View>
-                    <View style={styles.upcomingMeta}>
-                      <Ionicons name="location-outline" size={14} color={Colors.light.textSecondary} />
-                      <Text style={styles.upcomingMetaText} numberOfLines={1}>
-                        {matchInfo?.location}
+                  </Card>
+                </Animated.View>
+              );
+            })
+          )}
+
+          {/* Recent Activity */}
+          <Animated.View entering={FadeInDown.delay(500).springify()}>
+            <SectionTitle
+              label="Recent Activity"
+              colorScheme={colorScheme}
+              count={recentOffers.length > 0 ? recentOffers.length : undefined}
+              onSeeAll={recentOffers.length > 0 ? () => router.push('/(tabs)/manage') : undefined}
+            />
+          </Animated.View>
+
+          {recentOffers.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="time-outline" size={36} color={Colors[colorScheme].primary} />
+              </View>
+              <Text style={styles.emptyText}>No recent activity</Text>
+              <Text style={styles.emptySubtext}>Your match offers and booking activity will appear here</Text>
+            </Card>
+          ) : (
+            recentOffers.map((offer, index) => (
+              <Animated.View key={offer.id} entering={FadeInUp.delay(500 + index * 100).springify()}>
+                <Card style={styles.activityCard}>
+                  <View style={styles.activityRow}>
+                    <View style={styles.activityLeft}>
+                      <Text style={styles.activityTitle}>{offer.age_group} • {offer.format}</Text>
+                      <Text style={styles.activityLocation}>{offer.location}</Text>
+                      <Text style={styles.activitySlots}>
+                        {offer.slots.length} {offer.slots.length === 1 ? 'slot' : 'slots'}
+                      </Text>
+                    </View>
+                    <View style={[styles.statusBadge, {
+                      backgroundColor:
+                        offer.status === 'OPEN' ? 'rgba(34,197,94,0.12)' :
+                        offer.status === 'PENDING_APPROVAL' ? 'rgba(251,191,36,0.12)' :
+                        'rgba(168,162,158,0.08)',
+                    }]}>
+                      <Text style={[styles.statusBadgeText, {
+                        color:
+                          offer.status === 'OPEN' ? Colors[colorScheme].success :
+                          offer.status === 'PENDING_APPROVAL' ? Colors[colorScheme].warning :
+                          Colors[colorScheme].textSecondary,
+                      }]}>
+                        {getStatusLabel(offer.status)}
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.statusDot, { backgroundColor: getStatusColor(slot.status) }]} />
-                </View>
-              </Card>
-            );
-          })
-        )}
+                </Card>
+              </Animated.View>
+            ))
+          )}
 
-        {/* Recent Activity */}
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        {recentOffers.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="time-outline" size={32} color={Colors.light.textSecondary} />
-            <Text style={styles.emptyText}>No recent activity</Text>
-          </Card>
-        ) : (
-          recentOffers.map((offer) => (
-            <Card key={offer.id} style={styles.activityCard}>
-              <View style={styles.activityRow}>
-                <View style={styles.activityLeft}>
-                  <Text style={styles.activityTitle}>
-                    {offer.age_group} • {offer.format}
-                  </Text>
-                  <Text style={styles.activityLocation}>
-                    <Ionicons name="location-outline" size={12} color={Colors.light.textSecondary} /> {offer.location}
-                  </Text>
-                  <Text style={styles.activitySlots}>
-                    {offer.slots.length} {offer.slots.length === 1 ? 'slot' : 'slots'}
-                  </Text>
-                </View>
-                <View style={[styles.statusBadge, {
-                  backgroundColor: offer.status === 'OPEN' ? 'rgba(52,211,153,0.15)' :
-                    offer.status === 'PENDING_APPROVAL' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)'
-                }]}>
-                  <Text style={[styles.statusBadgeText, {
-                    color: offer.status === 'OPEN' ? Colors.light.success :
-                      offer.status === 'PENDING_APPROVAL' ? Colors.light.warning : Colors.light.textSecondary
-                  }]}>
-                    {getStatusLabel(offer.status)}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ))
-        )}
-
+        </View>
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <AnimatedPressable
+        style={styles.fab}
+        onPress={() => router.push('/match/create')}
+        scaleTo={0.9}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </AnimatedPressable>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+// ── Section Title with accent bar, optional count badge, and See All link ──
+function SectionTitle({
+  label,
+  colorScheme,
+  count,
+  onSeeAll,
+}: {
+  label: string;
+  colorScheme: 'light' | 'dark';
+  count?: number;
+  onSeeAll?: () => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+        <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: '#1B8B4E' }} />
+        <Text style={{ fontSize: 18, fontWeight: '700', color: Colors[colorScheme].text }}>{label}</Text>
+        {count !== undefined && (
+          <View style={{
+            backgroundColor: Colors[colorScheme].secondary,
+            borderRadius: 10,
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            minWidth: 24,
+            alignItems: 'center',
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: Colors[colorScheme].primary }}>{count}</Text>
+          </View>
+        )}
+      </View>
+      {onSeeAll && (
+        <Pressable onPress={onSeeAll} hitSlop={8}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors[colorScheme].primary }}>See all</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: Colors[colorScheme].background,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
+  },
+
+  // Hero band — tinted indigo wash at the top
+  heroBand: {
+    backgroundColor: colorScheme === 'dark' ? 'rgba(27,139,78,0.12)' : 'rgba(27,139,78,0.07)',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
   },
 
   // Header
   header: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   greeting: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
-    color: Colors.light.text,
-    letterSpacing: -0.3,
+    color: Colors[colorScheme].text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.light.textSecondary,
+    color: Colors[colorScheme].textSecondary,
     marginTop: 4,
   },
 
-  // Stats
+  // Stats — Redesigned with large numbers
   statsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 28,
   },
   statCard: {
     flex: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)',
     borderWidth: 1,
-  },
-  statCardGreen: {
-    backgroundColor: 'rgba(16,185,129,0.08)',
-    borderColor: 'rgba(16,185,129,0.15)',
-  },
-  statCardAmber: {
-    backgroundColor: 'rgba(251,191,36,0.06)',
-    borderColor: 'rgba(251,191,36,0.12)',
-  },
-  statCardBlue: {
-    backgroundColor: 'rgba(96,165,250,0.06)',
-    borderColor: 'rgba(96,165,250,0.12)',
+    borderColor: colorScheme === 'dark' ? 'rgba(27,139,78,0.2)' : 'rgba(27,139,78,0.1)',
+    shadowColor: '#1B8B4E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: colorScheme === 'dark' ? 0.2 : 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 4,
   },
-  statNumber: {
-    fontSize: 24,
+  statValue: {
+    fontSize: 28,
     fontWeight: '800',
-    color: Colors.light.text,
+    color: Colors[colorScheme].text,
+    lineHeight: 32,
   },
   statLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: Colors.light.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-
-  // Section
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.light.text,
-    marginBottom: 12,
+    fontWeight: '600',
+    color: Colors[colorScheme].textSecondary,
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
 
   // Quick Actions
@@ -381,26 +464,34 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
-    backgroundColor: Colors.light.card,
-    borderRadius: 16,
+    backgroundColor: Colors[colorScheme].card,
+    borderRadius: 20,
     padding: 20,
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.cardBorder,
+    gap: 8,
+    shadowColor: '#1B8B4E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: colorScheme === 'dark' ? 0.2 : 0.1,
+    shadowRadius: 16,
+    elevation: 4,
   },
   actionIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.light.secondary,
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: '#1B8B4E',
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
+    fontWeight: '700',
+    color: Colors[colorScheme].text,
+  },
+  actionSubtext: {
+    fontSize: 12,
+    color: Colors[colorScheme].textTertiary,
+    marginTop: -4,
   },
 
   // Upcoming
@@ -414,17 +505,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   upcomingDateBadge: {
-    backgroundColor: Colors.light.secondary,
-    borderRadius: 10,
+    backgroundColor: Colors[colorScheme].secondary,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     alignItems: 'center',
-    minWidth: 70,
+    minWidth: 72,
   },
   upcomingDateText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.light.primary,
+    color: Colors[colorScheme].primary,
     textAlign: 'center',
   },
   upcomingInfo: {
@@ -434,7 +525,7 @@ const styles = StyleSheet.create({
   upcomingTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.light.text,
+    color: Colors[colorScheme].text,
   },
   upcomingMeta: {
     flexDirection: 'row',
@@ -443,7 +534,7 @@ const styles = StyleSheet.create({
   },
   upcomingMetaText: {
     fontSize: 13,
-    color: Colors.light.textSecondary,
+    color: Colors[colorScheme].textSecondary,
   },
   statusDot: {
     width: 10,
@@ -468,15 +559,15 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.light.text,
+    color: Colors[colorScheme].text,
   },
   activityLocation: {
     fontSize: 13,
-    color: Colors.light.textSecondary,
+    color: Colors[colorScheme].textSecondary,
   },
   activitySlots: {
     fontSize: 12,
-    color: Colors.light.textTertiary,
+    color: Colors[colorScheme].textTertiary,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -488,21 +579,50 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Empty states
+  // Empty states — Enhanced
   emptyCard: {
-    padding: 24,
+    padding: 32,
     alignItems: 'center',
     gap: 8,
     marginBottom: 24,
   },
+  emptyIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    backgroundColor: Colors[colorScheme].secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   emptyText: {
-    fontSize: 15,
-    color: Colors.light.textSecondary,
-    fontWeight: '500',
+    fontSize: 16,
+    color: Colors[colorScheme].text,
+    fontWeight: '700',
   },
   emptySubtext: {
     fontSize: 13,
-    color: Colors.light.textTertiary,
+    color: Colors[colorScheme].textTertiary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 8,
   },
 
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors[colorScheme].primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors[colorScheme].primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
 });

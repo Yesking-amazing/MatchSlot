@@ -1,6 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import React, { useState } from 'react';
-import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
 
 interface AppBannerProps {
     deepLink?: string; // e.g., "matchslot://offer/token123"
@@ -11,6 +11,8 @@ interface AppBannerProps {
  * Only renders on web platform
  */
 export function AppBanner({ deepLink }: AppBannerProps) {
+    const colorScheme = useColorScheme() ?? 'light';
+    const styles = getStyles(colorScheme);
     const [dismissed, setDismissed] = useState(false);
 
     // Only show on web
@@ -62,16 +64,16 @@ export function AppBanner({ deepLink }: AppBannerProps) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     banner: {
-        backgroundColor: '#1a1a2e',
+        backgroundColor: '#1C1917',
         paddingHorizontal: 16,
         paddingVertical: 12,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         borderBottomWidth: 1,
-        borderBottomColor: '#333',
+        borderBottomColor: '#44403C',
     },
     appInfo: {
         flexDirection: 'row',
@@ -82,12 +84,12 @@ const styles = StyleSheet.create({
         fontSize: 32,
     },
     appName: {
-        color: '#fff',
+        color: '#FAFAF9',
         fontSize: 16,
         fontWeight: '600',
     },
     appTagline: {
-        color: '#aaa',
+        color: '#A8A29E',
         fontSize: 12,
     },
     actions: {
@@ -96,7 +98,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     openButton: {
-        backgroundColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].primary,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#666',
+        borderColor: '#78716C',
     },
     getButtonText: {
         color: '#fff',
@@ -123,7 +125,7 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     dismissText: {
-        color: '#888',
+        color: '#78716C',
         fontSize: 16,
     },
 });

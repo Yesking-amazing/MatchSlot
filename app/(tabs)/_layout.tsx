@@ -2,11 +2,11 @@ import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, View, useColorScheme } from 'react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const theme = Colors['light'];
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   return (
     <Tabs
@@ -15,13 +15,24 @@ export default function TabLayout() {
         tabBarInactiveTintColor: theme.tabIconDefault,
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.backgroundAlt,
+          position: 'absolute',
+          backgroundColor: colorScheme === 'dark'
+            ? 'rgba(10,31,18,0.95)'
+            : 'rgba(255,255,255,0.95)',
           borderTopColor: theme.border,
-          borderTopWidth: 1,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          elevation: 0,
         },
+        tabBarBackground: () => (
+          <View style={[StyleSheet.absoluteFill, {
+            backgroundColor: colorScheme === 'dark'
+              ? 'rgba(10,31,18,0.95)'
+              : 'rgba(255,255,255,0.95)',
+          }]} />
+        ),
         tabBarLabelStyle: {
-          fontWeight: '600',
-          fontSize: 11,
+          fontWeight: '500',
+          fontSize: 12,
         },
       }}>
       <Tabs.Screen
@@ -40,6 +51,16 @@ export default function TabLayout() {
           title: 'My Matches',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'football' : 'football-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />

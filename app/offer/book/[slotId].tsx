@@ -271,7 +271,7 @@ export default function BookSlotScreen() {
             <Stack.Screen options={{
                 title: 'Book Slot',
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
-                headerBackTitleVisible: false,
+                headerBackTitle: 'Back',
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background },
                 headerTintColor: Colors.light.text,

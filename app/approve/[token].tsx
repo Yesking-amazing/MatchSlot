@@ -91,7 +91,7 @@ const modalStyles = StyleSheet.create({
     },
     container: {
         backgroundColor: Colors.light.backgroundAlt,
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 24,
         maxWidth: 340,
         width: '100%',
@@ -123,8 +123,8 @@ const modalStyles = StyleSheet.create({
     cancelButton: {
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 8,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 12,
+        backgroundColor: 'rgba(168,162,158,0.08)',
         minWidth: 80,
     },
     cancelText: {
@@ -136,7 +136,7 @@ const modalStyles = StyleSheet.create({
     confirmButton: {
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 8,
+        borderRadius: 12,
         backgroundColor: Colors.light.primary,
         minWidth: 80,
     },
@@ -854,11 +854,11 @@ const styles = StyleSheet.create({
     },
     slotApproved: {
         borderColor: Colors.light.success,
-        backgroundColor: 'rgba(16,185,129,0.08)',
+        backgroundColor: 'rgba(34,197,94,0.08)',
     },
     slotRejected: {
         borderColor: Colors.light.error,
-        backgroundColor: 'rgba(248,113,113,0.08)',
+        backgroundColor: 'rgba(239,68,68,0.08)',
     },
     slotHeader: {
         flexDirection: 'row',

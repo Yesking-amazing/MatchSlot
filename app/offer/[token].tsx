@@ -183,7 +183,7 @@ export default function OfferViewScreen() {
             <Stack.Screen options={{
                 title: 'Match Offer',
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
-                headerBackTitleVisible: false,
+                headerBackTitle: 'Back',
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors.light.background },
                 headerTintColor: Colors.light.text,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     iconCircle: {
         width: 64,
         height: 64,
-        borderRadius: 32,
+        borderRadius: 20,
         backgroundColor: Colors.light.secondary,
         alignItems: 'center',
         justifyContent: 'center',
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     closedBadge: {
-        backgroundColor: 'rgba(248,113,113,0.15)',
+        backgroundColor: 'rgba(239,68,68,0.1)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 12,
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.light.primary,
         paddingHorizontal: 20,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 16,
     },
     selectButtonText: {
         color: '#fff',

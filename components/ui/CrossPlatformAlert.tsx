@@ -1,6 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import React, { createContext, useCallback, useContext, useState } from 'react';
-import { Modal, Platform, Pressable, Alert as RNAlert, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, Alert as RNAlert, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 interface AlertButton {
     text: string;
@@ -33,6 +33,8 @@ interface AlertProviderProps {
 }
 
 export function AlertProvider({ children }: AlertProviderProps) {
+    const colorScheme = useColorScheme() ?? 'light';
+    const styles = getStyles(colorScheme);
     const [visible, setVisible] = useState(false);
     const [config, setConfig] = useState<AlertConfig | null>(null);
 
@@ -65,11 +67,11 @@ export function AlertProvider({ children }: AlertProviderProps) {
     const getButtonStyle = (style?: string) => {
         switch (style) {
             case 'destructive':
-                return { color: Colors.light.error };
+                return { color: Colors[colorScheme].error };
             case 'cancel':
                 return { fontWeight: '600' as const };
             default:
-                return { color: Colors.light.primary };
+                return { color: Colors[colorScheme].primary };
         }
     };
 
@@ -112,7 +114,7 @@ export function AlertProvider({ children }: AlertProviderProps) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -121,8 +123,8 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     alertContainer: {
-        backgroundColor: Colors.light.background,
-        borderRadius: 16,
+        backgroundColor: Colors[colorScheme].background,
+        borderRadius: 20,
         padding: 24,
         maxWidth: 340,
         width: '100%',
@@ -135,13 +137,13 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         textAlign: 'center',
         marginBottom: 12,
     },
     message: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         textAlign: 'center',
         lineHeight: 20,
         marginBottom: 20,
@@ -155,15 +157,15 @@ const styles = StyleSheet.create({
     button: {
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 8,
-        backgroundColor: Colors.light.secondary,
+        borderRadius: 12,
+        backgroundColor: Colors[colorScheme].secondary,
         minWidth: 80,
     },
     buttonPressed: {
         opacity: 0.7,
     },
     destructiveButton: {
-        backgroundColor: '#FFEBEE',
+        backgroundColor: 'rgba(239,68,68,0.1)',
     },
     buttonText: {
         fontSize: 16,

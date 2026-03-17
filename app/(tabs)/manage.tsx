@@ -1,13 +1,19 @@
+import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ManageSkeleton } from '@/components/ui/SkeletonLoader';
 import { Colors } from '@/constants/Colors';
 import { copyLinkToClipboard } from '@/lib/shareLink';
+import { useAuth } from '@/contexts/AuthContext';
 import { getMyMatchIds, removeMyMatchId } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots, Slot, SlotStatus } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Results Modal Component
@@ -19,6 +25,8 @@ interface ResultsModalProps {
 }
 
 function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
+    const colorScheme = useColorScheme() ?? 'light';
+    const modalStyles = getModalStyles(colorScheme);
     const [homeScore, setHomeScore] = useState('');
     const [awayScore, setAwayScore] = useState('');
     const [notes, setNotes] = useState('');
@@ -93,7 +101,7 @@ function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
     );
 }
 
-const modalStyles = StyleSheet.create({
+const getModalStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -102,13 +110,11 @@ const modalStyles = StyleSheet.create({
         padding: 20,
     },
     container: {
-        backgroundColor: Colors.light.backgroundAlt,
-        borderRadius: 16,
+        backgroundColor: Colors[colorScheme].backgroundAlt,
+        borderRadius: 20,
         padding: 24,
         maxWidth: 340,
         width: '100%',
-        borderWidth: 1,
-        borderColor: Colors.light.cardBorder,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
@@ -118,7 +124,7 @@ const modalStyles = StyleSheet.create({
     title: {
         fontSize: 20,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         textAlign: 'center',
         marginBottom: 20,
     },
@@ -134,7 +140,7 @@ const modalStyles = StyleSheet.create({
     },
     scoreLabel: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginBottom: 8,
         fontWeight: '500',
     },
@@ -144,28 +150,28 @@ const modalStyles = StyleSheet.create({
         fontSize: 32,
         fontWeight: '700',
         textAlign: 'center',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         borderWidth: 1,
-        borderColor: Colors.light.border,
-        borderRadius: 12,
-        backgroundColor: Colors.light.card,
+        borderColor: Colors[colorScheme].border,
+        borderRadius: 16,
+        backgroundColor: Colors[colorScheme].card,
     },
     scoreSeparator: {
         fontSize: 32,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
     },
     notesInput: {
         borderWidth: 1,
-        borderColor: Colors.light.border,
-        borderRadius: 12,
+        borderColor: Colors[colorScheme].border,
+        borderRadius: 16,
         padding: 12,
         fontSize: 16,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         minHeight: 80,
         textAlignVertical: 'top',
         marginBottom: 20,
-        backgroundColor: Colors.light.card,
+        backgroundColor: Colors[colorScheme].card,
     },
     buttonRow: {
         flexDirection: 'row',
@@ -175,23 +181,23 @@ const modalStyles = StyleSheet.create({
     cancelButton: {
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 8,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 16,
+        backgroundColor: Colors[colorScheme].secondary,
         minWidth: 100,
     },
     cancelText: {
         fontSize: 16,
         fontWeight: '500',
         textAlign: 'center',
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
     },
     saveButton: {
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 8,
-        backgroundColor: Colors.light.primary,
+        borderRadius: 16,
+        backgroundColor: Colors[colorScheme].primary,
         minWidth: 100,
-        shadowColor: Colors.light.primary,
+        shadowColor: Colors[colorScheme].primary,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -204,7 +210,58 @@ const modalStyles = StyleSheet.create({
     },
 });
 
+// Slot status badge config
+const getSlotBadgeConfig = (status: SlotStatus, colorScheme: 'light' | 'dark') => {
+    switch (status) {
+        case 'OPEN':
+            return {
+                icon: 'radio-button-on' as const,
+                color: Colors[colorScheme].success,
+                bg: 'rgba(34,197,94,0.12)',
+                label: 'Awaiting Booking',
+            };
+        case 'HELD':
+            return {
+                icon: 'pause-circle' as const,
+                color: '#FFA500',
+                bg: 'rgba(255,165,0,0.12)',
+                label: 'Held',
+            };
+        case 'PENDING_APPROVAL':
+            return {
+                icon: 'hourglass' as const,
+                color: Colors[colorScheme].warning,
+                bg: 'rgba(251,191,36,0.12)',
+                label: 'Pending',
+            };
+        case 'BOOKED':
+            return {
+                icon: 'checkmark-circle' as const,
+                color: Colors[colorScheme].primary,
+                bg: colorScheme === 'dark' ? 'rgba(74,222,128,0.15)' : 'rgba(27,139,78,0.12)',
+                label: 'Booked',
+            };
+        case 'REJECTED':
+            return {
+                icon: 'close-circle' as const,
+                color: Colors[colorScheme].error,
+                bg: 'rgba(239,68,68,0.12)',
+                label: 'Rejected',
+            };
+        default:
+            return {
+                icon: 'ellipse' as const,
+                color: Colors[colorScheme].textSecondary,
+                bg: 'rgba(168,162,158,0.08)',
+                label: status,
+            };
+    }
+};
+
 export default function ManageScreen() {
+    const colorScheme = useColorScheme() ?? 'light';
+    const styles = getStyles(colorScheme);
+    const { user } = useAuth();
     const [offers, setOffers] = useState<MatchOfferWithSlots[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -215,8 +272,9 @@ export default function ManageScreen() {
 
     const loadOffers = async () => {
         try {
+            if (!user) { setLoading(false); setRefreshing(false); return; }
             // Fetch all match offers with their slots
-            const myMatchIds = await getMyMatchIds();
+            const myMatchIds = await getMyMatchIds(user.id);
 
             if (myMatchIds.length === 0) {
                 setOffers([]);
@@ -301,7 +359,7 @@ export default function ManageScreen() {
 
                             if (error) throw error;
 
-                            await removeMyMatchId(offerId);
+                            await removeMyMatchId(user!.id, offerId);
                             Alert.alert('Success', 'Offer deleted successfully');
                             loadOffers();
                         } catch (e: any) {
@@ -349,40 +407,6 @@ export default function ManageScreen() {
         return slot.status === 'BOOKED' && isMatchPast(slot);
     };
 
-    const getStatusColor = (status: SlotStatus) => {
-        switch (status) {
-            case 'OPEN':
-                return Colors.light.success;
-            case 'HELD':
-                return '#FFA500';
-            case 'PENDING_APPROVAL':
-                return '#FFD700';
-            case 'BOOKED':
-                return Colors.light.primary;
-            case 'REJECTED':
-                return Colors.light.error;
-            default:
-                return Colors.light.textSecondary;
-        }
-    };
-
-    const getStatusLabel = (status: SlotStatus) => {
-        switch (status) {
-            case 'OPEN':
-                return 'Open';
-            case 'HELD':
-                return 'Held';
-            case 'PENDING_APPROVAL':
-                return 'Pending';
-            case 'BOOKED':
-                return 'Booked';
-            case 'REJECTED':
-                return 'Rejected';
-            default:
-                return status;
-        }
-    };
-
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-GB', {
@@ -395,18 +419,36 @@ export default function ManageScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.centerContainer} edges={['top']}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <ManageSkeleton />
             </SafeAreaView>
         );
     }
 
     if (offers.length === 0) {
         return (
-            <SafeAreaView style={styles.centerContainer} edges={['top']}>
-                <Ionicons name="football-outline" size={64} color={Colors.light.textSecondary} />
-                <Text style={styles.emptyTitle}>No Match Offers Yet</Text>
-                <Text style={styles.emptySubtitle}>Create your first match offer to get started</Text>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconWrap}>
+                        <Ionicons name="football-outline" size={44} color={Colors[colorScheme].primary} />
+                    </View>
+                    <Text style={styles.emptyTitle}>No Match Offers Yet</Text>
+                    <Text style={styles.emptySubtitle}>Create your first match offer and share it with other coaches to start scheduling games</Text>
+                    <Button
+                        title="Create Match Offer"
+                        onPress={() => router.push('/match/create')}
+                        style={{ marginTop: 12 }}
+                    />
+                </View>
+
+                {/* FAB */}
+                <AnimatedPressable
+                    style={styles.fab}
+                    onPress={() => router.push('/match/create')}
+                    scaleTo={0.9}
+                >
+                    <Ionicons name="add" size={28} color="#fff" />
+                </AnimatedPressable>
             </SafeAreaView>
         );
     }
@@ -426,7 +468,11 @@ export default function ManageScreen() {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={Colors[colorScheme].primary}
+                    />
                 }
             >
                 <View style={styles.header}>
@@ -437,80 +483,93 @@ export default function ManageScreen() {
                 </View>
 
                 {offers.map((offer) => (
-                    <Card key={offer.id} style={styles.offerCard}>
-                        {/* Offer Header */}
-                        <View style={styles.offerHeader}>
-                            <View style={styles.offerHeaderLeft}>
-                                <Text style={styles.offerTitle}>
-                                    {offer.age_group} • {offer.format}
-                                </Text>
-                                <Text style={styles.offerLocation}>
-                                    <Ionicons name="location-outline" size={14} />
-                                    {' '}{offer.location}
+                    <View key={offer.id} style={styles.scoreboardCard}>
+                        {/* Scoreboard Header — dark strip */}
+                        <View style={styles.scoreboardHeader}>
+                            <View style={styles.scoreboardTeamSide}>
+                                <Text style={styles.scoreboardTeamLabel}>HOST</Text>
+                                <Text style={styles.scoreboardTeamName} numberOfLines={1}>
+                                    {offer.host_club || 'Your Team'}
                                 </Text>
                             </View>
-                            <View style={[styles.statusBadge, {
-                                backgroundColor: offer.status === 'OPEN' ? 'rgba(52,211,153,0.15)' :
-                                    offer.status === 'PENDING_APPROVAL' ? 'rgba(251,191,36,0.15)' : 'rgba(248,113,113,0.15)'
+                            <View style={styles.scoreboardCenter}>
+                                <Text style={styles.scoreboardFormat}>{offer.format}</Text>
+                                <Text style={styles.scoreboardAge}>{offer.age_group}</Text>
+                            </View>
+                            <View style={[styles.scoreboardTeamSide, { alignItems: 'flex-end' }]}>
+                                <Text style={styles.scoreboardTeamLabel}>SLOTS</Text>
+                                <Text style={styles.scoreboardSlotCount}>
+                                    {offer.slots.filter(s => s.status === 'BOOKED').length}/{offer.slots.length}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Status LED strip */}
+                        <View style={[styles.scoreboardLED, {
+                            backgroundColor: offer.status === 'OPEN' ? 'rgba(34,197,94,0.12)' :
+                                offer.status === 'PENDING_APPROVAL' ? 'rgba(251,191,36,0.12)' : 'rgba(168,162,158,0.08)',
+                        }]}>
+                            <View style={[styles.ledDot, {
+                                backgroundColor: offer.status === 'OPEN' ? Colors[colorScheme].success :
+                                    offer.status === 'PENDING_APPROVAL' ? Colors[colorScheme].warning : Colors[colorScheme].textSecondary,
+                            }]} />
+                            <Text style={[styles.ledText, {
+                                color: offer.status === 'OPEN' ? Colors[colorScheme].success :
+                                    offer.status === 'PENDING_APPROVAL' ? Colors[colorScheme].warning : Colors[colorScheme].textSecondary,
                             }]}>
-                                <Text style={[styles.statusText, {
-                                    color: offer.status === 'OPEN' ? Colors.light.success :
-                                        offer.status === 'PENDING_APPROVAL' ? Colors.light.warning : Colors.light.error
-                                }]}>
-                                    {offer.status === 'PENDING_APPROVAL' ? 'AWAITING APPROVAL' : offer.status}
-                                </Text>
+                                {offer.status === 'PENDING_APPROVAL' ? 'AWAITING APPROVAL' : offer.status}
+                            </Text>
+                            <View style={styles.ledRight}>
+                                <Ionicons name="location-outline" size={12} color={Colors[colorScheme].textSecondary} />
+                                <Text style={styles.ledLocation} numberOfLines={1}>{offer.location}</Text>
                             </View>
                         </View>
 
-                        {/* Offer Details */}
-                        <View style={styles.offerDetails}>
-                            <Text style={styles.offerDetailText}>
-                                Duration: {offer.duration} mins
+                        {/* Slots body */}
+                        <View style={styles.scoreboardBody}>
+                            <Text style={styles.scoreboardSlotsTitle}>
+                                {offer.duration} min  •  {offer.slots.length} {offer.slots.length === 1 ? 'slot' : 'slots'}
                             </Text>
-                            <Text style={styles.offerDetailText}>
-                                {offer.slots.length} {offer.slots.length === 1 ? 'slot' : 'slots'}
-                            </Text>
-                        </View>
-
-                        {/* Slots */}
-                        <View style={styles.slotsContainer}>
-                            <Text style={styles.slotsHeader}>Time Slots:</Text>
-                            {offer.slots.map((slot) => (
-                                <View key={slot.id} style={styles.slotRow}>
-                                    <View style={styles.slotInfo}>
-                                        <Ionicons name="time-outline" size={16} color={Colors.light.textSecondary} />
-                                        <Text style={styles.slotTime}>
-                                            {formatDateTime(slot.start_time)}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.slotStatusRow}>
-                                        <View style={[styles.slotStatusDot, { backgroundColor: getStatusColor(slot.status) }]} />
-                                        <Text style={[styles.slotStatusText, { color: getStatusColor(slot.status) }]}>
-                                            {getStatusLabel(slot.status)}
-                                        </Text>
-                                        {slot.guest_club && (
-                                            <Text style={styles.guestClub}> - {slot.guest_club}</Text>
-                                        )}
-                                    </View>
-
-                                    {/* Show results or save results button */}
-                                    {slot.result_saved_at ? (
-                                        <View style={styles.resultBadge}>
-                                            <Text style={styles.resultText}>
-                                                {slot.home_score} - {slot.away_score}
+                            {offer.slots.map((slot) => {
+                                const badge = getSlotBadgeConfig(slot.status, colorScheme);
+                                return (
+                                    <View key={slot.id} style={styles.slotRow}>
+                                        <View style={styles.slotInfo}>
+                                            <Ionicons name="time-outline" size={16} color={Colors[colorScheme].textSecondary} />
+                                            <Text style={styles.slotTime}>
+                                                {formatDateTime(slot.start_time)}
                                             </Text>
                                         </View>
-                                    ) : canSaveResults(slot) && (
-                                        <TouchableOpacity
-                                            style={styles.saveResultButton}
-                                            onPress={() => openResultsModal(slot)}
-                                        >
-                                            <Ionicons name="create-outline" size={14} color={Colors.light.primary} />
-                                            <Text style={styles.saveResultText}>Result</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            ))}
+                                        <View style={styles.slotStatusRow}>
+                                            <View style={[styles.slotStatusPill, { backgroundColor: badge.bg }]}>
+                                                <Ionicons name={badge.icon} size={12} color={badge.color} />
+                                                <Text style={[styles.slotStatusText, { color: badge.color }]}>
+                                                    {badge.label}
+                                                </Text>
+                                            </View>
+                                            {slot.guest_club && (
+                                                <Text style={styles.guestClub}> vs {slot.guest_club}</Text>
+                                            )}
+                                        </View>
+
+                                        {slot.result_saved_at ? (
+                                            <View style={styles.resultBadge}>
+                                                <Text style={styles.resultText}>
+                                                    {slot.home_score} - {slot.away_score}
+                                                </Text>
+                                            </View>
+                                        ) : canSaveResults(slot) && (
+                                            <TouchableOpacity
+                                                style={styles.saveResultButton}
+                                                onPress={() => openResultsModal(slot)}
+                                            >
+                                                <Ionicons name="create-outline" size={14} color={Colors[colorScheme].primary} />
+                                                <Text style={styles.saveResultText}>Result</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                );
+                            })}
                         </View>
 
                         {/* Actions */}
@@ -518,8 +577,8 @@ export default function ManageScreen() {
                             {offer.status === 'PENDING_APPROVAL' ? (
                                 <>
                                     <View style={[styles.actionButton, styles.pendingButton]}>
-                                        <Ionicons name="hourglass-outline" size={20} color={Colors.light.warning} />
-                                        <Text style={[styles.actionButtonText, { color: Colors.light.warning }]}>
+                                        <Ionicons name="hourglass-outline" size={20} color={Colors[colorScheme].warning} />
+                                        <Text style={[styles.actionButtonText, { color: Colors[colorScheme].warning }]}>
                                             Waiting for Approver
                                         </Text>
                                     </View>
@@ -527,7 +586,7 @@ export default function ManageScreen() {
                                         style={[styles.actionButton, styles.closeButton]}
                                         onPress={() => handleDeleteOffer(offer.id)}
                                     >
-                                        <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
+                                        <Ionicons name="trash-outline" size={20} color={Colors[colorScheme].error} />
                                     </TouchableOpacity>
                                 </>
                             ) : offer.status === 'OPEN' ? (
@@ -536,7 +595,7 @@ export default function ManageScreen() {
                                         style={styles.actionButton}
                                         onPress={() => handleShareLink(offer.share_token)}
                                     >
-                                        <Ionicons name="share-outline" size={20} color={Colors.light.primary} />
+                                        <Ionicons name="share-outline" size={20} color={Colors[colorScheme].primary} />
                                         <Text style={styles.actionButtonText}>Share Link</Text>
                                     </TouchableOpacity>
 
@@ -544,7 +603,7 @@ export default function ManageScreen() {
                                         style={[styles.actionButton, styles.closeButton]}
                                         onPress={() => handleDeleteOffer(offer.id)}
                                     >
-                                        <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
+                                        <Ionicons name="trash-outline" size={20} color={Colors[colorScheme].error} />
                                         <Text style={[styles.actionButtonText, styles.closeButtonText]}>
                                             Delete
                                         </Text>
@@ -552,9 +611,9 @@ export default function ManageScreen() {
                                 </>
                             ) : (
                                 <>
-                                    <View style={[styles.actionButton, { borderColor: Colors.light.textSecondary }]}>
-                                        <Ionicons name="checkmark-done" size={20} color={Colors.light.textSecondary} />
-                                        <Text style={[styles.actionButtonText, { color: Colors.light.textSecondary }]}>
+                                    <View style={[styles.actionButton, { borderColor: Colors[colorScheme].textSecondary }]}>
+                                        <Ionicons name="checkmark-done" size={20} color={Colors[colorScheme].textSecondary} />
+                                        <Text style={[styles.actionButtonText, { color: Colors[colorScheme].textSecondary }]}>
                                             {offer.status === 'CLOSED' ? 'Match Booked' : 'Cancelled'}
                                         </Text>
                                     </View>
@@ -562,32 +621,35 @@ export default function ManageScreen() {
                                         style={[styles.actionButton, styles.closeButton]}
                                         onPress={() => handleDeleteOffer(offer.id)}
                                     >
-                                        <Ionicons name="trash-outline" size={20} color={Colors.light.error} />
+                                        <Ionicons name="trash-outline" size={20} color={Colors[colorScheme].error} />
                                     </TouchableOpacity>
                                 </>
                             )}
                         </View>
-                    </Card>
+                    </View>
                 ))}
             </ScrollView>
+
+            {/* Floating Action Button */}
+            <AnimatedPressable
+                style={styles.fab}
+                onPress={() => router.push('/match/create')}
+                scaleTo={0.9}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </AnimatedPressable>
         </SafeAreaView>
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
-    },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: Colors.light.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
+        backgroundColor: Colors[colorScheme].background,
     },
     scrollContent: {
         padding: 20,
+        paddingBottom: 100,
     },
     header: {
         marginBottom: 20,
@@ -595,77 +657,137 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 28,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginBottom: 4,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
+    },
+
+    // Enhanced empty state
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    emptyIconWrap: {
+        width: 80,
+        height: 80,
+        borderRadius: 24,
+        backgroundColor: Colors[colorScheme].secondary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
     },
     emptyTitle: {
         fontSize: 20,
-        fontWeight: '600',
-        color: Colors.light.text,
-        marginTop: 16,
+        fontWeight: '700',
+        color: Colors[colorScheme].text,
+        marginBottom: 8,
     },
     emptySubtitle: {
-        fontSize: 16,
-        color: Colors.light.textSecondary,
-        marginTop: 8,
+        fontSize: 14,
+        color: Colors[colorScheme].textSecondary,
         textAlign: 'center',
+        lineHeight: 20,
+        paddingHorizontal: 16,
     },
-    offerCard: {
-        padding: 16,
-        marginBottom: 16,
+
+    // Scoreboard Card
+    scoreboardCard: {
+        borderRadius: 16,
+        overflow: 'hidden',
+        marginBottom: 20,
+        backgroundColor: Colors[colorScheme].card,
+        shadowColor: colorScheme === 'dark' ? '#000' : 'rgba(27,139,78,0.12)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 12,
+        elevation: 4,
     },
-    offerHeader: {
+    scoreboardHeader: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
+        backgroundColor: colorScheme === 'dark' ? '#0A1F12' : '#1A2E1A',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
     },
-    offerHeaderLeft: {
+    scoreboardTeamSide: {
         flex: 1,
     },
-    offerTitle: {
-        fontSize: 18,
+    scoreboardTeamLabel: {
+        fontSize: 9,
         fontWeight: '700',
-        color: Colors.light.text,
-        marginBottom: 4,
+        color: 'rgba(255,255,255,0.5)',
+        letterSpacing: 1.5,
+        marginBottom: 2,
     },
-    offerLocation: {
+    scoreboardTeamName: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        fontWeight: '700',
+        color: '#FFFFFF',
     },
-    statusBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
+    scoreboardCenter: {
+        alignItems: 'center',
+        paddingHorizontal: 16,
     },
-    statusText: {
-        fontSize: 12,
+    scoreboardFormat: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#4ADE80',
+        letterSpacing: 1,
+    },
+    scoreboardAge: {
+        fontSize: 11,
         fontWeight: '600',
+        color: 'rgba(255,255,255,0.6)',
+        marginTop: 1,
     },
-    offerDetails: {
+    scoreboardSlotCount: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#4ADE80',
+    },
+    scoreboardLED: {
         flexDirection: 'row',
-        gap: 16,
-        marginBottom: 16,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.light.border,
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 6,
     },
-    offerDetailText: {
-        fontSize: 14,
-        color: Colors.light.textSecondary,
+    ledDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
-    slotsContainer: {
-        marginBottom: 16,
+    ledText: {
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.8,
     },
-    slotsHeader: {
-        fontSize: 14,
+    ledRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    ledLocation: {
+        fontSize: 11,
+        color: Colors[colorScheme].textSecondary,
+        maxWidth: 140,
+    },
+    scoreboardBody: {
+        padding: 16,
+    },
+    scoreboardSlotsTitle: {
+        fontSize: 13,
         fontWeight: '600',
-        color: Colors.light.text,
-        marginBottom: 8,
+        color: Colors[colorScheme].textSecondary,
+        marginBottom: 10,
     },
     slotRow: {
         flexDirection: 'row',
@@ -684,28 +806,31 @@ const styles = StyleSheet.create({
     },
     slotTime: {
         fontSize: 14,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
     },
     slotStatusRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
     },
-    slotStatusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+    slotStatusPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
     },
     slotStatusText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
     },
     guestClub: {
         fontSize: 13,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
     },
     resultBadge: {
-        backgroundColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].primary,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 8,
@@ -723,10 +848,10 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 6,
         borderWidth: 1,
-        borderColor: Colors.light.primary,
+        borderColor: Colors[colorScheme].primary,
     },
     saveResultText: {
-        color: Colors.light.primary,
+        color: Colors[colorScheme].primary,
         fontSize: 12,
         fontWeight: '600',
     },
@@ -742,26 +867,44 @@ const styles = StyleSheet.create({
         gap: 8,
         paddingVertical: 12,
         paddingHorizontal: 16,
-        borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 16,
+        backgroundColor: Colors[colorScheme].secondary,
         borderWidth: 1,
-        borderColor: Colors.light.primary,
+        borderColor: Colors[colorScheme].primary,
     },
     actionButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: Colors.light.primary,
+        color: Colors[colorScheme].primary,
     },
     closeButton: {
-        borderColor: Colors.light.error,
+        borderColor: Colors[colorScheme].error,
         flex: 0,
         paddingHorizontal: 12,
     },
     pendingButton: {
-        borderColor: Colors.light.warning,
+        borderColor: Colors[colorScheme].warning,
         backgroundColor: 'rgba(251,191,36,0.08)',
     },
     closeButtonText: {
-        color: Colors.light.error,
+        color: Colors[colorScheme].error,
+    },
+
+    // FAB
+    fab: {
+        position: 'absolute',
+        bottom: 90,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: Colors[colorScheme].primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: Colors[colorScheme].primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 12,
+        elevation: 6,
     },
 });

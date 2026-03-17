@@ -1,7 +1,8 @@
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import React, { useRef } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 
 interface InputProps extends TextInputProps {
     label?: string;
@@ -10,20 +11,43 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, icon, rightElement, style, ...props }: InputProps) {
+    const colorScheme = useColorScheme() ?? 'light';
+    const inputRef = useRef<TextInput>(null);
+
     return (
         <View style={styles.wrapper}>
-            {label && <Text style={styles.label}>{label}</Text>}
-            <View style={[styles.container, style as any]}>
+            {label && (
+                <Text style={[styles.label, { color: Colors[colorScheme].textSecondary }]}>
+                    {label}
+                </Text>
+            )}
+            <Pressable
+                onPress={() => inputRef.current?.focus()}
+                style={[
+                    styles.container,
+                    {
+                        backgroundColor: Colors[colorScheme].card,
+                        borderColor: Colors[colorScheme].border
+                    },
+                    style as any
+                ]}
+            >
                 {icon && (
-                    <Ionicons name={icon} size={22} color={Colors.light.textSecondary} style={styles.icon} />
+                    <Ionicons
+                        name={icon}
+                        size={22}
+                        color={Colors[colorScheme].textSecondary}
+                        style={styles.icon}
+                    />
                 )}
                 <TextInput
-                    style={styles.input}
-                    placeholderTextColor={Colors.light.textTertiary}
+                    ref={inputRef}
+                    style={[styles.input, { color: Colors[colorScheme].text }]}
+                    placeholderTextColor={Colors[colorScheme].textTertiary}
                     {...props}
                 />
                 {rightElement}
-            </View>
+            </Pressable>
         </View>
     );
 }
@@ -34,21 +58,17 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 13,
-        fontWeight: '600',
-        color: Colors.light.textSecondary,
+        fontWeight: '500',
         marginBottom: 8,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.3,
     },
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.06)',
         borderWidth: 1,
-        borderColor: Colors.light.border,
-        borderRadius: 14,
+        borderRadius: 16,
         paddingHorizontal: 16,
-        minHeight: 56,
+        minHeight: 52,
         paddingVertical: 10,
     },
     icon: {
@@ -57,7 +77,6 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         fontSize: 16,
-        color: Colors.light.text,
         minHeight: 36,
     },
 });
