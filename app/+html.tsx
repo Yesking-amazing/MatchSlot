@@ -29,5 +29,27 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
 const responsiveBackground = `
 body {
-  background-color: #0A1628;
-}`;
+  background-color: #F7FAF5;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #0A1F12;
+  }
+}
+
+/* Desktop: center content in a max-width column */
+@media (min-width: 768px) {
+  #root > div {
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+    min-height: 100vh;
+    box-shadow: 0 0 40px rgba(0,0,0,0.08);
+  }
+}
+@media (min-width: 768px) and (prefers-color-scheme: dark) {
+  #root > div {
+    box-shadow: 0 0 40px rgba(0,0,0,0.4);
+  }
+}
+`;
