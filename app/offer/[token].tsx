@@ -1,5 +1,6 @@
 import { AppBanner } from '@/components/ui/AppBanner';
 import { Card } from '@/components/ui/Card';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots, Slot, SlotStatus } from '@/types/database';
@@ -13,6 +14,8 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacit
  * View match offer via shareable link and select a slot
  */
 export default function OfferViewScreen() {
+    const colorScheme = useColorScheme() ?? 'light';
+    const styles = getStyles(colorScheme);
     const { token } = useLocalSearchParams<{ token: string }>();
     const [offer, setOffer] = useState<MatchOfferWithSlots | null>(null);
     const [loading, setLoading] = useState(true);
@@ -109,14 +112,14 @@ export default function OfferViewScreen() {
     const getStatusColor = (status: SlotStatus) => {
         switch (status) {
             case 'OPEN':
-                return Colors.light.success;
+                return Colors[colorScheme].success;
             case 'HELD':
             case 'PENDING_APPROVAL':
-                return Colors.light.warning;
+                return Colors[colorScheme].warning;
             case 'BOOKED':
-                return Colors.light.primary;
+                return Colors[colorScheme].primary;
             default:
-                return Colors.light.textSecondary;
+                return Colors[colorScheme].textSecondary;
         }
     };
 
@@ -163,7 +166,7 @@ export default function OfferViewScreen() {
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
             </View>
         );
     }
@@ -171,7 +174,7 @@ export default function OfferViewScreen() {
     if (!offer) {
         return (
             <View style={styles.centerContainer}>
-                <Ionicons name="alert-circle-outline" size={64} color={Colors.light.error} />
+                <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
                 <Text style={styles.errorTitle}>Offer Not Found</Text>
                 <Text style={styles.errorSubtitle}>This match offer does not exist or has been removed.</Text>
             </View>
@@ -182,11 +185,11 @@ export default function OfferViewScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Match Offer',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
                 headerBackTitle: 'Back',
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background },
-                headerTintColor: Colors.light.text,
+                headerStyle: { backgroundColor: Colors[colorScheme].background },
+                headerTintColor: Colors[colorScheme].text,
             }} />
 
             <AppBanner deepLink={`matchslot://offer/${token}`} />
@@ -197,7 +200,7 @@ export default function OfferViewScreen() {
                     <Card style={styles.detailsCard}>
                         <View style={styles.iconHeader}>
                             <View style={styles.iconCircle}>
-                                <Ionicons name="football" size={32} color={Colors.light.primary} />
+                                <Ionicons name="football" size={32} color={Colors[colorScheme].primary} />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.mainTitle}>
@@ -214,7 +217,7 @@ export default function OfferViewScreen() {
 
                         <View style={styles.detailsGrid}>
                             <View style={styles.detailRow}>
-                                <Ionicons name="location" size={20} color={Colors.light.primary} />
+                                <Ionicons name="location" size={20} color={Colors[colorScheme].primary} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.detailLabel}>Location</Text>
                                     <Text style={styles.detailValue}>{offer.location}</Text>
@@ -222,7 +225,7 @@ export default function OfferViewScreen() {
                             </View>
 
                             <View style={styles.detailRow}>
-                                <Ionicons name="timer" size={20} color={Colors.light.primary} />
+                                <Ionicons name="timer" size={20} color={Colors[colorScheme].primary} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.detailLabel}>Duration</Text>
                                     <Text style={styles.detailValue}>{offer.duration} minutes</Text>
@@ -230,7 +233,7 @@ export default function OfferViewScreen() {
                             </View>
 
                             <View style={styles.detailRow}>
-                                <Ionicons name="person" size={20} color={Colors.light.primary} />
+                                <Ionicons name="person" size={20} color={Colors[colorScheme].primary} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.detailLabel}>Host</Text>
                                     <Text style={styles.detailValue}>
@@ -242,7 +245,7 @@ export default function OfferViewScreen() {
 
                             {offer.notes && (
                                 <View style={styles.detailRow}>
-                                    <Ionicons name="information-circle" size={20} color={Colors.light.primary} />
+                                    <Ionicons name="information-circle" size={20} color={Colors[colorScheme].primary} />
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.detailLabel}>Additional Info</Text>
                                         <Text style={styles.detailValue}>{offer.notes}</Text>
@@ -302,7 +305,7 @@ export default function OfferViewScreen() {
                                             </TouchableOpacity>
                                         ) : (
                                             <View style={styles.unavailableIcon}>
-                                                <Ionicons name="lock-closed" size={24} color={Colors.light.textSecondary} />
+                                                <Ionicons name="lock-closed" size={24} color={Colors[colorScheme].textSecondary} />
                                             </View>
                                         )}
                                     </View>
@@ -316,14 +319,14 @@ export default function OfferViewScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
     },
     centerContainer: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
@@ -334,12 +337,12 @@ const styles = StyleSheet.create({
     errorTitle: {
         fontSize: 20,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginTop: 16,
     },
     errorSubtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginTop: 8,
         textAlign: 'center',
     },
@@ -354,25 +357,25 @@ const styles = StyleSheet.create({
         marginBottom: 24,
         paddingBottom: 20,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.light.border,
+        borderBottomColor: Colors[colorScheme].border,
     },
     iconCircle: {
         width: 64,
         height: 64,
         borderRadius: 20,
-        backgroundColor: Colors.light.secondary,
+        backgroundColor: Colors[colorScheme].secondary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     mainTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginBottom: 4,
     },
     formatText: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         fontWeight: '500',
     },
     closedBadge: {
@@ -384,7 +387,7 @@ const styles = StyleSheet.create({
     closedBadgeText: {
         fontSize: 12,
         fontWeight: '700',
-        color: Colors.light.error,
+        color: Colors[colorScheme].error,
     },
     detailsGrid: {
         gap: 16,
@@ -396,25 +399,25 @@ const styles = StyleSheet.create({
     },
     detailLabel: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginBottom: 2,
         textTransform: 'uppercase',
         fontWeight: '600',
     },
     detailValue: {
         fontSize: 16,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         fontWeight: '500',
     },
     sectionTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginBottom: 8,
     },
     sectionSubtitle: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginBottom: 16,
     },
     emptyCard: {
@@ -423,7 +426,7 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
     },
     slotCard: {
         padding: 16,
@@ -443,17 +446,17 @@ const styles = StyleSheet.create({
     slotDate: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginBottom: 4,
     },
     slotTime: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginBottom: 8,
     },
     textDisabled: {
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
     },
     slotMeta: {
         flexDirection: 'row',
@@ -473,7 +476,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        backgroundColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].primary,
         paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: 16,

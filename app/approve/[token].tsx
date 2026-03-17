@@ -1,6 +1,7 @@
 import { AppBanner } from '@/components/ui/AppBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { generateShareableLink } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
@@ -29,7 +30,7 @@ interface ConfirmModalProps {
     onCancel: () => void;
 }
 
-function ConfirmModal({ visible, title, message, confirmText, confirmStyle, onConfirm, onCancel }: ConfirmModalProps) {
+function ConfirmModal({ visible, title, message, confirmText, confirmStyle, onConfirm, onCancel, modalStyles }: ConfirmModalProps & { modalStyles: any }) {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
             <View style={modalStyles.overlay}>
@@ -63,7 +64,7 @@ interface AlertModalProps {
     onClose: () => void;
 }
 
-function AlertModal({ visible, title, message, onClose }: AlertModalProps) {
+function AlertModal({ visible, title, message, onClose, modalStyles }: AlertModalProps & { modalStyles: any }) {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <View style={modalStyles.overlay}>
@@ -81,7 +82,7 @@ function AlertModal({ visible, title, message, onClose }: AlertModalProps) {
     );
 }
 
-const modalStyles = StyleSheet.create({
+const getModalStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -90,7 +91,7 @@ const modalStyles = StyleSheet.create({
         padding: 20,
     },
     container: {
-        backgroundColor: Colors.light.backgroundAlt,
+        backgroundColor: Colors[colorScheme].backgroundAlt,
         borderRadius: 20,
         padding: 24,
         maxWidth: 340,
@@ -104,13 +105,13 @@ const modalStyles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         textAlign: 'center',
         marginBottom: 12,
     },
     message: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         textAlign: 'center',
         lineHeight: 20,
         marginBottom: 20,
@@ -131,13 +132,13 @@ const modalStyles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
         textAlign: 'center',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
     },
     confirmButton: {
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 12,
-        backgroundColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].primary,
         minWidth: 80,
     },
     confirmText: {
@@ -147,7 +148,7 @@ const modalStyles = StyleSheet.create({
         color: '#fff',
     },
     destructiveButton: {
-        backgroundColor: Colors.light.error,
+        backgroundColor: Colors[colorScheme].error,
     },
     destructiveText: {
         color: '#fff',
@@ -155,6 +156,9 @@ const modalStyles = StyleSheet.create({
 });
 
 export default function ApprovalScreen() {
+    const colorScheme = useColorScheme() ?? 'light';
+    const styles = getStyles(colorScheme);
+    const mStyles = getModalStyles(colorScheme);
     const { token } = useLocalSearchParams<{ token: string }>();
     const [approval, setApproval] = useState<Approval | null>(null);
     const [slots, setSlots] = useState<Slot[]>([]);
@@ -517,9 +521,9 @@ export default function ApprovalScreen() {
 
     const getSlotStatusColor = (slotId: string) => {
         const status = slotStatuses[slotId];
-        if (status === 'APPROVED') return Colors.light.success;
-        if (status === 'REJECTED') return Colors.light.error;
-        return Colors.light.primary;
+        if (status === 'APPROVED') return Colors[colorScheme].success;
+        if (status === 'REJECTED') return Colors[colorScheme].error;
+        return Colors[colorScheme].primary;
     };
 
     const getSlotStatusIcon = (slotId: string) => {
@@ -532,7 +536,7 @@ export default function ApprovalScreen() {
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
             </View>
         );
     }
@@ -540,7 +544,7 @@ export default function ApprovalScreen() {
     if (!approval || !offer) {
         return (
             <View style={styles.centerContainer}>
-                <Ionicons name="alert-circle-outline" size={64} color={Colors.light.error} />
+                <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
                 <Text style={styles.errorTitle}>Not Found</Text>
                 <Text style={styles.errorSubtitle}>This approval request does not exist or has expired.</Text>
             </View>
@@ -555,10 +559,10 @@ export default function ApprovalScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Approve Match Slots',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background },
-                headerTintColor: Colors.light.text,
+                headerStyle: { backgroundColor: Colors[colorScheme].background },
+                headerTintColor: Colors[colorScheme].text,
             }} />
 
             <AppBanner deepLink={`matchslot://approve/${token}`} />
@@ -573,6 +577,7 @@ export default function ApprovalScreen() {
                     confirmStyle={confirmModal.confirmStyle}
                     onConfirm={confirmModal.onConfirm}
                     onCancel={() => setConfirmModal(null)}
+                    modalStyles={mStyles}
                 />
             )}
 
@@ -587,6 +592,7 @@ export default function ApprovalScreen() {
                         setAlertModal(null);
                         if (onCloseCallback) onCloseCallback();
                     }}
+                    modalStyles={mStyles}
                 />
             )}
 
@@ -595,7 +601,7 @@ export default function ApprovalScreen() {
                     {/* Header */}
                     <Card style={styles.headerCard}>
                         <View style={styles.headerIcon}>
-                            <Ionicons name="shield-checkmark" size={40} color={Colors.light.primary} />
+                            <Ionicons name="shield-checkmark" size={40} color={Colors[colorScheme].primary} />
                         </View>
                         <Text style={styles.headerTitle}>Match Slot Approval</Text>
                         <Text style={styles.headerSubtitle}>
@@ -607,15 +613,15 @@ export default function ApprovalScreen() {
                     {/* Status Summary */}
                     <View style={styles.statusSummary}>
                         <View style={styles.statusBadge}>
-                            <Text style={[styles.statusCount, { color: Colors.light.primary }]}>{pendingCount}</Text>
+                            <Text style={[styles.statusCount, { color: Colors[colorScheme].primary }]}>{pendingCount}</Text>
                             <Text style={styles.statusLabel}>Pending</Text>
                         </View>
                         <View style={styles.statusBadge}>
-                            <Text style={[styles.statusCount, { color: Colors.light.success }]}>{approvedCount}</Text>
+                            <Text style={[styles.statusCount, { color: Colors[colorScheme].success }]}>{approvedCount}</Text>
                             <Text style={styles.statusLabel}>Approved</Text>
                         </View>
                         <View style={styles.statusBadge}>
-                            <Text style={[styles.statusCount, { color: Colors.light.error }]}>{rejectedCount}</Text>
+                            <Text style={[styles.statusCount, { color: Colors[colorScheme].error }]}>{rejectedCount}</Text>
                             <Text style={styles.statusLabel}>Rejected</Text>
                         </View>
                     </View>
@@ -624,7 +630,7 @@ export default function ApprovalScreen() {
                     <Text style={styles.sectionTitle}>Host Coach</Text>
                     <Card style={styles.detailsCard}>
                         <View style={styles.detailRow}>
-                            <Ionicons name="person" size={24} color={Colors.light.primary} />
+                            <Ionicons name="person" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.detailLabel}>Name</Text>
                                 <Text style={styles.detailValue}>
@@ -639,7 +645,7 @@ export default function ApprovalScreen() {
                     <Text style={styles.sectionTitle}>Match Details</Text>
                     <Card style={styles.detailsCard}>
                         <View style={styles.detailRow}>
-                            <Ionicons name="football" size={24} color={Colors.light.primary} />
+                            <Ionicons name="football" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.detailLabel}>Match Type</Text>
                                 <Text style={styles.detailValue}>
@@ -649,7 +655,7 @@ export default function ApprovalScreen() {
                         </View>
 
                         <View style={styles.detailRow}>
-                            <Ionicons name="location" size={24} color={Colors.light.primary} />
+                            <Ionicons name="location" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.detailLabel}>Location</Text>
                                 <Text style={styles.detailValue}>{offer.location}</Text>
@@ -657,7 +663,7 @@ export default function ApprovalScreen() {
                         </View>
 
                         <View style={styles.detailRow}>
-                            <Ionicons name="timer" size={24} color={Colors.light.primary} />
+                            <Ionicons name="timer" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.detailLabel}>Duration</Text>
                                 <Text style={styles.detailValue}>{offer.duration} minutes</Text>
@@ -694,7 +700,7 @@ export default function ApprovalScreen() {
                                 {status === 'PENDING' && (
                                     <View style={styles.slotActions}>
                                         {isProcessing ? (
-                                            <ActivityIndicator size="small" color={Colors.light.primary} />
+                                            <ActivityIndicator size="small" color={Colors[colorScheme].primary} />
                                         ) : (
                                             <>
                                                 <Pressable
@@ -742,14 +748,14 @@ export default function ApprovalScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
     },
     centerContainer: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
@@ -761,13 +767,13 @@ const styles = StyleSheet.create({
     errorTitle: {
         fontSize: 20,
         fontWeight: '600',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginTop: 16,
         textAlign: 'center',
     },
     errorSubtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginTop: 8,
         textAlign: 'center',
     },
@@ -775,8 +781,8 @@ const styles = StyleSheet.create({
         padding: 24,
         alignItems: 'center',
         marginBottom: 16,
-        backgroundColor: Colors.light.secondary,
-        borderColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].secondary,
+        borderColor: Colors[colorScheme].primary,
         borderWidth: 1,
     },
     headerIcon: {
@@ -785,13 +791,13 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginBottom: 8,
         textAlign: 'center',
     },
     headerSubtitle: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         textAlign: 'center',
         lineHeight: 20,
     },
@@ -800,10 +806,10 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
         marginBottom: 20,
         paddingVertical: 16,
-        backgroundColor: Colors.light.card,
+        backgroundColor: Colors[colorScheme].card,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: Colors.light.border,
+        borderColor: Colors[colorScheme].border,
     },
     statusBadge: {
         alignItems: 'center',
@@ -814,13 +820,13 @@ const styles = StyleSheet.create({
     },
     statusLabel: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginTop: 4,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginTop: 8,
         marginBottom: 12,
     },
@@ -836,14 +842,14 @@ const styles = StyleSheet.create({
     },
     detailLabel: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginBottom: 2,
         textTransform: 'uppercase',
         fontWeight: '600',
     },
     detailValue: {
         fontSize: 16,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         fontWeight: '500',
     },
     slotCard: {
@@ -853,11 +859,11 @@ const styles = StyleSheet.create({
         borderColor: 'transparent',
     },
     slotApproved: {
-        borderColor: Colors.light.success,
+        borderColor: Colors[colorScheme].success,
         backgroundColor: 'rgba(34,197,94,0.08)',
     },
     slotRejected: {
-        borderColor: Colors.light.error,
+        borderColor: Colors[colorScheme].error,
         backgroundColor: 'rgba(239,68,68,0.08)',
     },
     slotHeader: {
@@ -870,7 +876,7 @@ const styles = StyleSheet.create({
     },
     slotText: {
         fontSize: 16,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         fontWeight: '600',
     },
     slotStatus: {
@@ -885,13 +891,13 @@ const styles = StyleSheet.create({
         marginTop: 12,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: Colors.light.border,
+        borderTopColor: Colors[colorScheme].border,
     },
     approveSlotButton: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: Colors.light.success,
+        backgroundColor: Colors[colorScheme].success,
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 8,
@@ -900,7 +906,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: Colors.light.error,
+        backgroundColor: Colors[colorScheme].error,
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 8,
@@ -918,16 +924,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
         padding: 20,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
         borderTopWidth: 1,
-        borderTopColor: Colors.light.border,
+        borderTopColor: Colors[colorScheme].border,
     },
     rejectButton: {
         flex: 1,
-        backgroundColor: Colors.light.error,
+        backgroundColor: Colors[colorScheme].error,
     },
     approveButton: {
         flex: 1,
-        backgroundColor: Colors.light.success,
+        backgroundColor: Colors[colorScheme].success,
     },
 });

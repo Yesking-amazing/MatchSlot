@@ -2,6 +2,7 @@ import { AppBanner } from '@/components/ui/AppBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 import { MatchOffer, Slot } from '@/types/database';
@@ -16,6 +17,8 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, S
  * Enter team and contact details to book a slot
  */
 export default function BookSlotScreen() {
+    const colorScheme = useColorScheme() ?? 'light';
+    const styles = getStyles(colorScheme);
     const { slotId, token } = useLocalSearchParams<{ slotId: string; token: string }>();
     const [slot, setSlot] = useState<Slot | null>(null);
     const [offer, setOffer] = useState<MatchOffer | null>(null);
@@ -191,7 +194,7 @@ export default function BookSlotScreen() {
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
             </View>
         );
     }
@@ -213,12 +216,12 @@ export default function BookSlotScreen() {
                     headerTitleStyle: { fontWeight: '700', fontSize: 18 },
                     headerBackVisible: false,
                     headerShadowVisible: false,
-                    headerStyle: { backgroundColor: Colors.light.background }
+                    headerStyle: { backgroundColor: Colors[colorScheme].background }
                 }} />
                 <View style={styles.confirmationContainer}>
                     <View style={styles.confirmationContent}>
                         <View style={styles.successIcon}>
-                            <Ionicons name="checkmark-circle" size={80} color={Colors.light.success} />
+                            <Ionicons name="checkmark-circle" size={80} color={Colors[colorScheme].success} />
                         </View>
                         <Text style={styles.confirmationTitle}>Match Confirmed! 🎉</Text>
                         <Text style={styles.confirmationSubtitle}>
@@ -227,7 +230,7 @@ export default function BookSlotScreen() {
 
                         <Card style={styles.confirmationCard}>
                             <View style={styles.confirmationDetail}>
-                                <Ionicons name="calendar-outline" size={20} color={Colors.light.primary} />
+                                <Ionicons name="calendar-outline" size={20} color={Colors[colorScheme].primary} />
                                 <View style={styles.confirmationDetailText}>
                                     <Text style={styles.confirmationLabel}>Date & Time</Text>
                                     <Text style={styles.confirmationValue}>{formatDateTime(slot!.start_time)}</Text>
@@ -235,7 +238,7 @@ export default function BookSlotScreen() {
                             </View>
 
                             <View style={styles.confirmationDetail}>
-                                <Ionicons name="location-outline" size={20} color={Colors.light.primary} />
+                                <Ionicons name="location-outline" size={20} color={Colors[colorScheme].primary} />
                                 <View style={styles.confirmationDetailText}>
                                     <Text style={styles.confirmationLabel}>Location</Text>
                                     <Text style={styles.confirmationValue}>{offer?.location}</Text>
@@ -243,7 +246,7 @@ export default function BookSlotScreen() {
                             </View>
 
                             <View style={styles.confirmationDetail}>
-                                <Ionicons name="shield-outline" size={20} color={Colors.light.primary} />
+                                <Ionicons name="shield-outline" size={20} color={Colors[colorScheme].primary} />
                                 <View style={styles.confirmationDetailText}>
                                     <Text style={styles.confirmationLabel}>Host Team</Text>
                                     <Text style={styles.confirmationValue}>{offer?.host_club || offer?.host_name}</Text>
@@ -270,11 +273,11 @@ export default function BookSlotScreen() {
         <>
             <Stack.Screen options={{
                 title: 'Book Slot',
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors.light.text },
+                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
                 headerBackTitle: 'Back',
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors.light.background },
-                headerTintColor: Colors.light.text,
+                headerStyle: { backgroundColor: Colors[colorScheme].background },
+                headerTintColor: Colors[colorScheme].text,
             }} />
 
             <AppBanner deepLink={`matchslot://offer/book/${slotId}`} />
@@ -287,7 +290,7 @@ export default function BookSlotScreen() {
                     {/* Selected Slot Summary */}
                     <Card style={styles.summaryCard}>
                         <View style={styles.summaryHeader}>
-                            <Ionicons name="checkmark-circle" size={32} color={Colors.light.success} />
+                            <Ionicons name="checkmark-circle" size={32} color={Colors[colorScheme].success} />
                             <Text style={styles.summaryTitle}>Selected Slot</Text>
                         </View>
 
@@ -352,7 +355,7 @@ export default function BookSlotScreen() {
                     <View style={styles.divider} />
 
                     <Card style={styles.infoCard}>
-                        <Ionicons name="information-circle-outline" size={24} color={Colors.light.primary} />
+                        <Ionicons name="information-circle-outline" size={24} color={Colors[colorScheme].primary} />
                         <Text style={styles.infoText}>
                             Your match will be confirmed immediately. The host coach will receive a notification and can contact you to finalize details.
                         </Text>
@@ -371,20 +374,20 @@ export default function BookSlotScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
     },
     centerContainer: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
         justifyContent: 'center',
         alignItems: 'center',
     },
     errorText: {
         fontSize: 16,
-        color: Colors.light.error,
+        color: Colors[colorScheme].error,
     },
     scrollContent: {
         padding: 20,
@@ -393,8 +396,8 @@ const styles = StyleSheet.create({
     summaryCard: {
         padding: 20,
         marginBottom: 24,
-        backgroundColor: Colors.light.secondary,
-        borderColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].secondary,
+        borderColor: Colors[colorScheme].primary,
         borderWidth: 1,
     },
     summaryHeader: {
@@ -404,43 +407,43 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.light.border,
+        borderBottomColor: Colors[colorScheme].border,
     },
     summaryTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
     },
     summaryDetails: {
         marginBottom: 12,
     },
     summaryLabel: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginBottom: 4,
         textTransform: 'uppercase',
         fontWeight: '600',
     },
     summaryValue: {
         fontSize: 16,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         fontWeight: '600',
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         marginTop: 8,
         marginBottom: 8,
     },
     sectionSubtitle: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         marginBottom: 16,
     },
     divider: {
         height: 1,
-        backgroundColor: Colors.light.border,
+        backgroundColor: Colors[colorScheme].border,
         marginVertical: 24,
     },
     infoCard: {
@@ -454,7 +457,7 @@ const styles = StyleSheet.create({
     infoText: {
         flex: 1,
         fontSize: 14,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         lineHeight: 20,
     },
     footer: {
@@ -463,14 +466,14 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         padding: 20,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
         borderTopWidth: 1,
-        borderTopColor: Colors.light.border,
+        borderTopColor: Colors[colorScheme].border,
     },
     // Confirmation screen styles
     confirmationContainer: {
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: Colors[colorScheme].background,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
@@ -486,13 +489,13 @@ const styles = StyleSheet.create({
     confirmationTitle: {
         fontSize: 28,
         fontWeight: '700',
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         textAlign: 'center',
         marginBottom: 8,
     },
     confirmationSubtitle: {
         fontSize: 16,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         textAlign: 'center',
         marginBottom: 24,
     },
@@ -500,8 +503,8 @@ const styles = StyleSheet.create({
         width: '100%',
         padding: 20,
         marginBottom: 24,
-        backgroundColor: Colors.light.secondary,
-        borderColor: Colors.light.primary,
+        backgroundColor: Colors[colorScheme].secondary,
+        borderColor: Colors[colorScheme].primary,
         borderWidth: 1,
     },
     confirmationDetail: {
@@ -515,19 +518,19 @@ const styles = StyleSheet.create({
     },
     confirmationLabel: {
         fontSize: 12,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         textTransform: 'uppercase',
         fontWeight: '600',
         marginBottom: 2,
     },
     confirmationValue: {
         fontSize: 16,
-        color: Colors.light.text,
+        color: Colors[colorScheme].text,
         fontWeight: '600',
     },
     confirmationNote: {
         fontSize: 14,
-        color: Colors.light.textSecondary,
+        color: Colors[colorScheme].textSecondary,
         textAlign: 'center',
         marginBottom: 24,
         lineHeight: 20,

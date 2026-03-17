@@ -14,21 +14,30 @@ export function AppBanner({ deepLink }: AppBannerProps) {
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
     const [dismissed, setDismissed] = useState(false);
+    const [openFailed, setOpenFailed] = useState(false);
 
     // Only show on web
     if (Platform.OS !== 'web' || dismissed) {
         return null;
     }
 
-    const handleOpenInApp = async () => {
-        if (deepLink) {
-            // Try to open the app via deep link
-            try {
-                await Linking.openURL(deepLink);
-            } catch (e) {
-                // App not installed - could redirect to App Store
-                console.log('Could not open app:', e);
-            }
+    const handleOpenInApp = () => {
+        if (!deepLink) return;
+
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            // Use window.location.href for custom URL schemes — more reliable
+            // than Linking.openURL which uses window.open and gets blocked
+            const start = Date.now();
+            window.location.href = deepLink;
+
+            // If we're still here after 1.5s, the app probably isn't installed
+            setTimeout(() => {
+                if (document.hasFocus() && Date.now() - start >= 1400) {
+                    setOpenFailed(true);
+                }
+            }, 1500);
+        } else {
+            Linking.openURL(deepLink).catch(() => setOpenFailed(true));
         }
     };
 
@@ -44,11 +53,13 @@ export function AppBanner({ deepLink }: AppBannerProps) {
                 <Text style={styles.appIcon}>⚽</Text>
                 <View>
                     <Text style={styles.appName}>MatchSlot</Text>
-                    <Text style={styles.appTagline}>Book matches faster in the app</Text>
+                    <Text style={styles.appTagline}>
+                        {openFailed ? 'App not found — get it below' : 'Book matches faster in the app'}
+                    </Text>
                 </View>
             </View>
             <View style={styles.actions}>
-                {deepLink && (
+                {deepLink && !openFailed && (
                     <TouchableOpacity style={styles.openButton} onPress={handleOpenInApp}>
                         <Text style={styles.openButtonText}>Open in App</Text>
                     </TouchableOpacity>

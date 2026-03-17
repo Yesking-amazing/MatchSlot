@@ -40,7 +40,7 @@ export const Colors = {
     border: '#D4E4D4',            // Soft green
 
     // Status
-    success: '#22C55E',
+    success: '#16A34A',
     warning: '#F59E0B',
     error: '#EF4444',
 
