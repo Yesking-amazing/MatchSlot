@@ -74,6 +74,8 @@ export interface Slot {
   home_score?: number;
   away_score?: number;
   result_notes?: string;
+  man_of_match?: string;
+  goal_scorers?: string;
   result_saved_at?: string;
 
   // Timestamps

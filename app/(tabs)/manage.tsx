@@ -533,41 +533,46 @@ export default function ManageScreen() {
                             {offer.slots.map((slot) => {
                                 const badge = getSlotBadgeConfig(slot.status, colorScheme);
                                 return (
-                                    <View key={slot.id} style={styles.slotRow}>
-                                        <View style={styles.slotInfo}>
-                                            <Ionicons name="time-outline" size={16} color={Colors[colorScheme].textSecondary} />
-                                            <Text style={styles.slotTime}>
-                                                {formatDateTime(slot.start_time)}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.slotStatusRow}>
-                                            <View style={[styles.slotStatusPill, { backgroundColor: badge.bg }]}>
-                                                <Ionicons name={badge.icon} size={12} color={badge.color} />
-                                                <Text style={[styles.slotStatusText, { color: badge.color }]}>
-                                                    {badge.label}
+                                    <AnimatedPressable
+                                        key={slot.id}
+                                        onPress={() => router.push(`/match/detail/${slot.id}` as any)}
+                                        scaleTo={0.98}
+                                    >
+                                        <View style={styles.slotRow}>
+                                            <View style={styles.slotInfo}>
+                                                <Ionicons name="time-outline" size={16} color={Colors[colorScheme].textSecondary} />
+                                                <Text style={styles.slotTime}>
+                                                    {formatDateTime(slot.start_time)}
                                                 </Text>
                                             </View>
-                                            {slot.guest_club && (
-                                                <Text style={styles.guestClub}> vs {slot.guest_club}</Text>
+                                            <View style={styles.slotStatusRow}>
+                                                <View style={[styles.slotStatusPill, { backgroundColor: badge.bg }]}>
+                                                    <Ionicons name={badge.icon} size={12} color={badge.color} />
+                                                    <Text style={[styles.slotStatusText, { color: badge.color }]}>
+                                                        {badge.label}
+                                                    </Text>
+                                                </View>
+                                                {slot.guest_club && (
+                                                    <Text style={styles.guestClub}> vs {slot.guest_club}</Text>
+                                                )}
+                                            </View>
+
+                                            {slot.result_saved_at ? (
+                                                <View style={styles.resultBadge}>
+                                                    <Text style={styles.resultText}>
+                                                        {slot.home_score} - {slot.away_score}
+                                                    </Text>
+                                                </View>
+                                            ) : canSaveResults(slot) ? (
+                                                <View style={styles.saveResultButton}>
+                                                    <Ionicons name="create-outline" size={14} color={Colors[colorScheme].primary} />
+                                                    <Text style={styles.saveResultText}>Result</Text>
+                                                </View>
+                                            ) : (
+                                                <Ionicons name="chevron-forward" size={16} color={Colors[colorScheme].textTertiary} />
                                             )}
                                         </View>
-
-                                        {slot.result_saved_at ? (
-                                            <View style={styles.resultBadge}>
-                                                <Text style={styles.resultText}>
-                                                    {slot.home_score} - {slot.away_score}
-                                                </Text>
-                                            </View>
-                                        ) : canSaveResults(slot) && (
-                                            <TouchableOpacity
-                                                style={styles.saveResultButton}
-                                                onPress={() => openResultsModal(slot)}
-                                            >
-                                                <Ionicons name="create-outline" size={14} color={Colors[colorScheme].primary} />
-                                                <Text style={styles.saveResultText}>Result</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
+                                    </AnimatedPressable>
                                 );
                             })}
                         </View>
