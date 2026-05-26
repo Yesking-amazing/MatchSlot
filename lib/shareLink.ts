@@ -1,53 +1,67 @@
 import * as Clipboard from 'expo-clipboard';
-import { Alert } from 'react-native';
+import * as Linking from 'expo-linking';
+import { Alert, Platform, Share } from 'react-native';
+import i18n from '@/lib/i18n';
 
-// Using web links so anyone can access without the app
-const USE_UNIVERSAL_LINKS = true;
+const BASE_URL = 'https://matchslot.netlify.app';
 
-/**
- * Generate the shareable link URL for a match offer
- * US-HC-02: Generate shareable link
- */
 export function generateShareableLink(shareToken: string): string {
-  if (USE_UNIVERSAL_LINKS) {
-    // Your deployed web URL
-    const baseUrl = 'https://matchslot.netlify.app';
-    return `${baseUrl}/offer/${shareToken}`;
-  } else {
-    // For TestFlight and early production - works immediately!
-    // Format: matchslot://offer/token
-    return `matchslot://offer/${shareToken}`;
-  }
+    return `${BASE_URL}/offer/${shareToken}`;
 }
 
-/**
- * Copy link to clipboard and show confirmation
- */
-export async function copyLinkToClipboard(shareToken: string): Promise<void> {
-  const link = generateShareableLink(shareToken);
-  await Clipboard.setStringAsync(link);
-  Alert.alert('Link Copied!', 'Share this link with other coaches to let them book a slot.');
-}
-
-/**
- * Generate approval link for approvers
- */
 export function generateApprovalLink(approvalToken: string): string {
-  if (USE_UNIVERSAL_LINKS) {
-    const baseUrl = 'https://matchslot.netlify.app';
-    return `${baseUrl}/approve/${approvalToken}`;
-  } else {
-    return `matchslot://approve/${approvalToken}`;
-  }
+    return `${BASE_URL}/approve/${approvalToken}`;
+}
+
+export async function copyLinkToClipboard(shareToken: string): Promise<void> {
+    const link = generateShareableLink(shareToken);
+    await Clipboard.setStringAsync(link);
+    Alert.alert(i18n.t('share.linkCopied'), i18n.t('share.linkCopiedDesc'));
 }
 
 /**
- * Share link using native share dialog (if available)
+ * Native share sheet (iOS/Android) — covers WhatsApp, iMessage, email, etc.
+ * Falls back to clipboard on web.
  */
-export async function shareLink(shareToken: string, matchDetails: string): Promise<void> {
-  const link = generateShareableLink(shareToken);
+export async function shareMatchLink(shareToken: string, matchDetails: string): Promise<void> {
+    const link = generateShareableLink(shareToken);
+    const message = `${matchDetails}\n\nBook a slot here: ${link}`;
 
-  // For web/expo, we'll just copy to clipboard
-  // In production with native modules, you could use react-native-share
-  await copyLinkToClipboard(shareToken);
+    if (Platform.OS === 'web') {
+        await Clipboard.setStringAsync(link);
+        Alert.alert(i18n.t('share.linkCopied'), i18n.t('share.linkCopiedDesc'));
+        return;
+    }
+
+    try {
+        await Share.share({ message, url: link });
+    } catch {
+        await copyLinkToClipboard(shareToken);
+    }
+}
+
+/**
+ * Direct WhatsApp share — only call after checking canShareWhatsApp()
+ */
+export async function shareViaWhatsApp(shareToken: string, matchDetails: string): Promise<void> {
+    const link = generateShareableLink(shareToken);
+    const message = encodeURIComponent(`${matchDetails}\n\nBook a slot here: ${link}`);
+    await Linking.openURL(`whatsapp://send?text=${message}`);
+}
+
+/**
+ * Returns true if WhatsApp is installed on this device
+ */
+export async function canShareWhatsApp(): Promise<boolean> {
+    if (Platform.OS === 'web') return false;
+    try {
+        return await Linking.canOpenURL('whatsapp://send');
+    } catch {
+        return false;
+    }
+}
+
+// Keep for backwards compat
+export async function shareLink(shareToken: string, matchDetails: string): Promise<void> {
+    return shareMatchLink(shareToken, matchDetails);
 }

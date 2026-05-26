@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { openInMaps } from '@/lib/mapsUtils';
+import { sendPushToUser } from '@/lib/notifications';
 import { generateShareableLink } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
 import { Approval, MatchOffer, Slot } from '@/types/database';
@@ -10,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 /**
  * Approval Screen - Handles individual slot approval/denial
@@ -25,12 +28,13 @@ interface ConfirmModalProps {
     title: string;
     message: string;
     confirmText: string;
+    cancelText?: string;
     confirmStyle?: 'default' | 'destructive';
     onConfirm: () => void;
     onCancel: () => void;
 }
 
-function ConfirmModal({ visible, title, message, confirmText, confirmStyle, onConfirm, onCancel, modalStyles }: ConfirmModalProps & { modalStyles: any }) {
+function ConfirmModal({ visible, title, message, confirmText, cancelText, confirmStyle, onConfirm, onCancel, modalStyles }: ConfirmModalProps & { modalStyles: any }) {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
             <View style={modalStyles.overlay}>
@@ -39,7 +43,7 @@ function ConfirmModal({ visible, title, message, confirmText, confirmStyle, onCo
                     <Text style={modalStyles.message}>{message}</Text>
                     <View style={modalStyles.buttonRow}>
                         <Pressable style={modalStyles.cancelButton} onPress={onCancel}>
-                            <Text style={modalStyles.cancelText}>Cancel</Text>
+                            <Text style={modalStyles.cancelText}>{cancelText || 'Cancel'}</Text>
                         </Pressable>
                         <Pressable
                             style={[modalStyles.confirmButton, confirmStyle === 'destructive' && modalStyles.destructiveButton]}
@@ -61,10 +65,11 @@ interface AlertModalProps {
     visible: boolean;
     title: string;
     message: string;
+    okText?: string;
     onClose: () => void;
 }
 
-function AlertModal({ visible, title, message, onClose, modalStyles }: AlertModalProps & { modalStyles: any }) {
+function AlertModal({ visible, title, message, okText, onClose, modalStyles }: AlertModalProps & { modalStyles: any }) {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <View style={modalStyles.overlay}>
@@ -73,7 +78,7 @@ function AlertModal({ visible, title, message, onClose, modalStyles }: AlertModa
                     <Text style={modalStyles.message}>{message}</Text>
                     <View style={modalStyles.buttonRow}>
                         <Pressable style={modalStyles.confirmButton} onPress={onClose}>
-                            <Text style={modalStyles.confirmText}>OK</Text>
+                            <Text style={modalStyles.confirmText}>{okText || 'OK'}</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -159,6 +164,7 @@ export default function ApprovalScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
     const mStyles = getModalStyles(colorScheme);
+    const { t } = useTranslation();
     const { token } = useLocalSearchParams<{ token: string }>();
     const [approval, setApproval] = useState<Approval | null>(null);
     const [slots, setSlots] = useState<Slot[]>([]);
@@ -172,6 +178,7 @@ export default function ApprovalScreen() {
         title: string;
         message: string;
         confirmText: string;
+        cancelText?: string;
         confirmStyle?: 'default' | 'destructive';
         onConfirm: () => void;
     } | null>(null);
@@ -179,6 +186,7 @@ export default function ApprovalScreen() {
         visible: boolean;
         title: string;
         message: string;
+        okText?: string;
         onClose?: () => void;
     } | null>(null);
 
@@ -244,6 +252,7 @@ export default function ApprovalScreen() {
         title: string;
         message: string;
         confirmText: string;
+        cancelText?: string;
         confirmStyle?: 'default' | 'destructive';
         onConfirm: () => void;
     }) => {
@@ -254,14 +263,15 @@ export default function ApprovalScreen() {
     };
 
     const showAlert = (title: string, message: string, onClose?: () => void) => {
-        setAlertModal({ visible: true, title, message, onClose });
+        setAlertModal({ visible: true, title, message, okText: t('common.ok'), onClose });
     };
 
     const handleApproveSlot = (slot: Slot) => {
         showConfirm({
-            title: 'Approve This Slot',
-            message: `Are you sure you want to approve "${formatDateTime(slot.start_time)}"? This will confirm this time slot for the match.`,
-            confirmText: 'Approve',
+            title: t('approve.approveSlot'),
+            message: t('approve.approveSlotDesc', { time: formatDateTime(slot.start_time) }),
+            confirmText: t('approve.approve'),
+            cancelText: t('common.cancel'),
             onConfirm: async () => {
                 setConfirmModal(null);
                 setProcessing(slot.id);
@@ -301,10 +311,14 @@ export default function ApprovalScreen() {
                         });
                     }
 
-                    showAlert('Approved!', `The slot "${formatDateTime(slot.start_time)}" has been approved.`);
+                    // Push notify host
+                    if (offer?.created_by) {
+                        await sendPushToUser(offer.created_by, 'Slot Approved ✅', `Your ${offer.age_group} ${offer.format} slot on ${formatDateTime(slot.start_time)} is now live.`);
+                    }
+                    showAlert(t('approve.approvedLabel') + '!', t('approve.approvedMsg', { time: formatDateTime(slot.start_time) }));
                 } catch (e: any) {
                     console.error(e);
-                    showAlert('Error', 'Failed to approve slot: ' + e.message);
+                    showAlert(t('common.error'), t('approve.failedApprove') + ': ' + e.message);
                 } finally {
                     setProcessing(null);
                 }
@@ -314,9 +328,10 @@ export default function ApprovalScreen() {
 
     const handleRejectSlot = (slot: Slot) => {
         showConfirm({
-            title: 'Reject This Slot',
-            message: `Are you sure you want to reject "${formatDateTime(slot.start_time)}"? This time slot will not be available for booking.`,
-            confirmText: 'Reject',
+            title: t('approve.rejectSlot'),
+            message: t('approve.rejectSlotDesc', { time: formatDateTime(slot.start_time) }),
+            confirmText: t('approve.deny'),
+            cancelText: t('common.cancel'),
             confirmStyle: 'destructive',
             onConfirm: async () => {
                 setConfirmModal(null);
@@ -362,10 +377,10 @@ export default function ApprovalScreen() {
                         });
                     }
 
-                    showAlert('Rejected', `The slot "${formatDateTime(slot.start_time)}" has been rejected.`);
+                    showAlert(t('approve.rejectedLabel'), t('approve.rejectedMsg', { time: formatDateTime(slot.start_time) }));
                 } catch (e: any) {
                     console.error(e);
-                    showAlert('Error', 'Failed to reject slot: ' + e.message);
+                    showAlert(t('common.error'), t('approve.failedReject') + ': ' + e.message);
                 } finally {
                     setProcessing(null);
                 }
@@ -376,14 +391,15 @@ export default function ApprovalScreen() {
     const handleApproveAll = () => {
         const pendingSlots = slots.filter(s => slotStatuses[s.id] === 'PENDING');
         if (pendingSlots.length === 0) {
-            showAlert('No Pending Slots', 'All slots have already been processed.');
+            showAlert(t('approve.noPending'), t('approve.allProcessed'));
             return;
         }
 
         showConfirm({
-            title: 'Approve All Slots',
-            message: `This will approve all ${pendingSlots.length} pending slot(s). Continue?`,
-            confirmText: 'Approve All',
+            title: t('approve.approveAll'),
+            message: t('approve.approveAllDesc', { count: pendingSlots.length }),
+            confirmText: t('approve.approveAll'),
+            cancelText: t('common.cancel'),
             onConfirm: async () => {
                 setConfirmModal(null);
                 setProcessing('all');
@@ -426,17 +442,21 @@ export default function ApprovalScreen() {
                     // Generate share link
                     const shareLink = offer ? generateShareableLink(offer.share_token) : '';
 
-                    showAlert('All Approved!', `All ${pendingSlots.length} slot(s) have been approved. The match offer is now ready to share.`,
+                    // Push notify host
+                    if (offer?.created_by) {
+                        await sendPushToUser(offer.created_by, 'Match Approved ✅', `All ${pendingSlots.length} slot(s) for your ${offer.age_group} ${offer.format} match are now live.`);
+                    }
+                    showAlert(t('approve.allApproved'), t('approve.allApprovedDesc', { count: pendingSlots.length }),
                         async () => {
                             if (shareLink) {
                                 await Clipboard.setStringAsync(shareLink);
-                                showAlert('Link Copied!', 'Share link copied to clipboard.');
+                                showAlert(t('approve.linkCopied'), t('approve.linkCopiedDesc'));
                             }
                         }
                     );
                 } catch (e: any) {
                     console.error(e);
-                    showAlert('Error', 'Failed to approve slots: ' + e.message);
+                    showAlert(t('common.error'), t('approve.failedApprove') + ': ' + e.message);
                 } finally {
                     setProcessing(null);
                 }
@@ -447,14 +467,15 @@ export default function ApprovalScreen() {
     const handleRejectAll = () => {
         const pendingSlots = slots.filter(s => slotStatuses[s.id] === 'PENDING');
         if (pendingSlots.length === 0) {
-            showAlert('No Pending Slots', 'All slots have already been processed.');
+            showAlert(t('approve.noPending'), t('approve.allProcessed'));
             return;
         }
 
         showConfirm({
-            title: 'Reject All Slots',
-            message: `This will reject all ${pendingSlots.length} pending slot(s) and cancel the match offer. Continue?`,
-            confirmText: 'Reject All',
+            title: t('approve.rejectAll'),
+            message: t('approve.rejectAllDesc', { count: pendingSlots.length }),
+            confirmText: t('approve.rejectAll'),
+            cancelText: t('common.cancel'),
             confirmStyle: 'destructive',
             onConfirm: async () => {
                 setConfirmModal(null);
@@ -495,12 +516,12 @@ export default function ApprovalScreen() {
                     pendingIds.forEach(id => { newStatuses[id] = 'REJECTED'; });
                     setSlotStatuses(newStatuses);
 
-                    showAlert('All Rejected', 'All slots have been rejected. The match offer has been cancelled.',
+                    showAlert(t('approve.allRejected'), t('approve.allRejectedDesc'),
                         () => router.push('/')
                     );
                 } catch (e: any) {
                     console.error(e);
-                    showAlert('Error', 'Failed to reject slots: ' + e.message);
+                    showAlert(t('common.error'), t('approve.failedReject') + ': ' + e.message);
                 } finally {
                     setProcessing(null);
                 }
@@ -545,8 +566,8 @@ export default function ApprovalScreen() {
         return (
             <View style={styles.centerContainer}>
                 <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
-                <Text style={styles.errorTitle}>Not Found</Text>
-                <Text style={styles.errorSubtitle}>This approval request does not exist or has expired.</Text>
+                <Text style={styles.errorTitle}>{t('approve.notFound')}</Text>
+                <Text style={styles.errorSubtitle}>{t('approve.notFoundDesc')}</Text>
             </View>
         );
     }
@@ -558,7 +579,7 @@ export default function ApprovalScreen() {
     return (
         <>
             <Stack.Screen options={{
-                title: 'Approve Match Slots',
+                title: t('approve.title'),
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors[colorScheme].background },
@@ -574,6 +595,7 @@ export default function ApprovalScreen() {
                     title={confirmModal.title}
                     message={confirmModal.message}
                     confirmText={confirmModal.confirmText}
+                    cancelText={confirmModal.cancelText}
                     confirmStyle={confirmModal.confirmStyle}
                     onConfirm={confirmModal.onConfirm}
                     onCancel={() => setConfirmModal(null)}
@@ -587,6 +609,7 @@ export default function ApprovalScreen() {
                     visible={alertModal.visible}
                     title={alertModal.title}
                     message={alertModal.message}
+                    okText={alertModal.okText}
                     onClose={() => {
                         const onCloseCallback = alertModal.onClose;
                         setAlertModal(null);
@@ -603,10 +626,9 @@ export default function ApprovalScreen() {
                         <View style={styles.headerIcon}>
                             <Ionicons name="shield-checkmark" size={40} color={Colors[colorScheme].primary} />
                         </View>
-                        <Text style={styles.headerTitle}>Match Slot Approval</Text>
+                        <Text style={styles.headerTitle}>{t('approve.headerTitle')}</Text>
                         <Text style={styles.headerSubtitle}>
-                            Review and approve or reject each time slot individually.
-                            You can also use the bulk actions at the bottom.
+                            {t('approve.headerDesc')}
                         </Text>
                     </Card>
 
@@ -614,25 +636,25 @@ export default function ApprovalScreen() {
                     <View style={styles.statusSummary}>
                         <View style={styles.statusBadge}>
                             <Text style={[styles.statusCount, { color: Colors[colorScheme].primary }]}>{pendingCount}</Text>
-                            <Text style={styles.statusLabel}>Pending</Text>
+                            <Text style={styles.statusLabel}>{t('approve.pendingLabel')}</Text>
                         </View>
                         <View style={styles.statusBadge}>
                             <Text style={[styles.statusCount, { color: Colors[colorScheme].success }]}>{approvedCount}</Text>
-                            <Text style={styles.statusLabel}>Approved</Text>
+                            <Text style={styles.statusLabel}>{t('approve.approvedLabel')}</Text>
                         </View>
                         <View style={styles.statusBadge}>
                             <Text style={[styles.statusCount, { color: Colors[colorScheme].error }]}>{rejectedCount}</Text>
-                            <Text style={styles.statusLabel}>Rejected</Text>
+                            <Text style={styles.statusLabel}>{t('approve.rejectedLabel')}</Text>
                         </View>
                     </View>
 
                     {/* Host Details */}
-                    <Text style={styles.sectionTitle}>Host Coach</Text>
+                    <Text style={styles.sectionTitle}>{t('approve.hostCoach')}</Text>
                     <Card style={styles.detailsCard}>
                         <View style={styles.detailRow}>
                             <Ionicons name="person" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Name</Text>
+                                <Text style={styles.detailLabel}>{t('auth.name')}</Text>
                                 <Text style={styles.detailValue}>
                                     {offer.host_name}
                                     {offer.host_club && ` (${offer.host_club})`}
@@ -642,37 +664,38 @@ export default function ApprovalScreen() {
                     </Card>
 
                     {/* Match Details */}
-                    <Text style={styles.sectionTitle}>Match Details</Text>
+                    <Text style={styles.sectionTitle}>{t('approve.matchDetailsTitle')}</Text>
                     <Card style={styles.detailsCard}>
                         <View style={styles.detailRow}>
                             <Ionicons name="football" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Match Type</Text>
+                                <Text style={styles.detailLabel}>{t('approve.matchType')}</Text>
                                 <Text style={styles.detailValue}>
                                     {offer.age_group} • {offer.format}
                                 </Text>
                             </View>
                         </View>
 
-                        <View style={styles.detailRow}>
+                        <TouchableOpacity style={styles.detailRow} onPress={() => openInMaps(offer.location)}>
                             <Ionicons name="location" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Location</Text>
-                                <Text style={styles.detailValue}>{offer.location}</Text>
+                                <Text style={styles.detailLabel}>{t('detail.location')}</Text>
+                                <Text style={[styles.detailValue, { color: Colors[colorScheme].primary }]}>{offer.location}</Text>
                             </View>
-                        </View>
+                            <Ionicons name="navigate-outline" size={16} color={Colors[colorScheme].primary} />
+                        </TouchableOpacity>
 
                         <View style={styles.detailRow}>
                             <Ionicons name="timer" size={24} color={Colors[colorScheme].primary} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.detailLabel}>Duration</Text>
-                                <Text style={styles.detailValue}>{offer.duration} minutes</Text>
+                                <Text style={styles.detailLabel}>{t('detail.duration')}</Text>
+                                <Text style={styles.detailValue}>{offer.duration} {t('common.minutes')}</Text>
                             </View>
                         </View>
                     </Card>
 
                     {/* Time Slots with Individual Approve/Reject Buttons */}
-                    <Text style={styles.sectionTitle}>Time Slots</Text>
+                    <Text style={styles.sectionTitle}>{t('approve.timeSlots')}</Text>
                     {slots.map((slot) => {
                         const status = slotStatuses[slot.id];
                         const isProcessing = processing === slot.id || processing === 'all';
@@ -692,7 +715,7 @@ export default function ApprovalScreen() {
                                     <View style={styles.slotInfo}>
                                         <Text style={styles.slotText}>{formatDateTime(slot.start_time)}</Text>
                                         <Text style={[styles.slotStatus, { color: getSlotStatusColor(slot.id) }]}>
-                                            {status === 'APPROVED' ? 'Approved' : status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                                            {status === 'APPROVED' ? t('approve.approvedLabel') : status === 'REJECTED' ? t('approve.rejectedLabel') : t('approve.pendingLabel')}
                                         </Text>
                                     </View>
                                 </View>
@@ -708,14 +731,14 @@ export default function ApprovalScreen() {
                                                     onPress={() => handleRejectSlot(slot)}
                                                 >
                                                     <Ionicons name="close" size={18} color="#fff" />
-                                                    <Text style={styles.slotButtonText}>Deny</Text>
+                                                    <Text style={styles.slotButtonText}>{t('approve.deny')}</Text>
                                                 </Pressable>
                                                 <Pressable
                                                     style={styles.approveSlotButton}
                                                     onPress={() => handleApproveSlot(slot)}
                                                 >
                                                     <Ionicons name="checkmark" size={18} color="#fff" />
-                                                    <Text style={styles.slotButtonText}>Approve</Text>
+                                                    <Text style={styles.slotButtonText}>{t('approve.approve')}</Text>
                                                 </Pressable>
                                             </>
                                         )}
@@ -730,13 +753,13 @@ export default function ApprovalScreen() {
                 {pendingCount > 0 && (
                     <View style={styles.footer}>
                         <Button
-                            title="Reject All"
+                            title={t('approve.rejectAll')}
                             onPress={handleRejectAll}
                             loading={processing === 'all'}
                             style={styles.rejectButton}
                         />
                         <Button
-                            title="Approve All"
+                            title={t('approve.approveAll')}
                             onPress={handleApproveAll}
                             loading={processing === 'all'}
                             style={styles.approveButton}

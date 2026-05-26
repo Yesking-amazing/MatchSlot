@@ -4,12 +4,15 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { addMatchToCalendar } from '@/lib/calendarUtils';
+import { scheduleMatchReminders, sendPushToUser } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { MatchOffer, Slot } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as MailComposer from 'expo-mail-composer';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 /**
@@ -19,6 +22,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, S
 export default function BookSlotScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
+    const { t } = useTranslation();
     const { slotId, token } = useLocalSearchParams<{ slotId: string; token: string }>();
     const [slot, setSlot] = useState<Slot | null>(null);
     const [offer, setOffer] = useState<MatchOffer | null>(null);
@@ -49,7 +53,7 @@ export default function BookSlotScreen() {
             if (slotError) throw slotError;
 
             if (!slotData) {
-                Alert.alert('Not Found', 'This slot does not exist.');
+                Alert.alert(t('offer.notFound'), t('offer.notFoundDesc'));
                 router.back();
                 return;
             }
@@ -67,7 +71,7 @@ export default function BookSlotScreen() {
             setOffer(offerData);
         } catch (e: any) {
             console.error(e);
-            Alert.alert('Error', 'Failed to load slot details');
+            Alert.alert(t('common.error'), t('detail.failedLoad'));
             router.back();
         } finally {
             setLoading(false);
@@ -77,15 +81,15 @@ export default function BookSlotScreen() {
     const handleSubmit = async () => {
         // Validation
         if (!guestName.trim()) {
-            Alert.alert('Required', 'Please enter your name');
+            Alert.alert(t('common.required'), t('book.enterName'));
             return;
         }
         if (!guestClub.trim()) {
-            Alert.alert('Required', 'Please enter your club name');
+            Alert.alert(t('common.required'), t('book.enterClub'));
             return;
         }
         if (!guestContact.trim()) {
-            Alert.alert('Required', 'Please enter your contact information');
+            Alert.alert(t('common.required'), t('book.enterContact'));
             return;
         }
 
@@ -103,10 +107,10 @@ export default function BookSlotScreen() {
 
             if (slotCheck.status !== 'OPEN') {
                 Alert.alert(
-                    'Slot Unavailable',
-                    'Sorry, this slot has been taken by another team. Please go back and select another available slot.',
+                    t('offer.notAvailable'),
+                    t('offer.slotUnavailable'),
                     [
-                        { text: 'OK', onPress: () => router.back() }
+                        { text: t('common.ok'), onPress: () => router.back() }
                     ]
                 );
                 return;
@@ -170,11 +174,24 @@ export default function BookSlotScreen() {
                 });
             }
 
+            // 7. Send push notification to host
+            if (offer?.created_by) {
+                await sendPushToUser(
+                    offer.created_by,
+                    'Match Booked! 🎉',
+                    `${guestClub} has booked your ${offer.age_group} ${offer.format} slot.`
+                );
+            }
+
+            // 8. Schedule local reminders (1h before + day-before attendance check)
+            const matchTitle = `${offer?.age_group} ${offer?.format} — ${guestClub} vs ${offer?.host_club || offer?.host_name}`;
+            await scheduleMatchReminders(slotId!, slot!.start_time, matchTitle, offer?.location || '');
+
             // Show success screen instead of alert for better web UX
             setBookingConfirmed(true);
         } catch (e: any) {
             console.error(e);
-            Alert.alert('Error', 'Failed to book match: ' + e.message);
+            Alert.alert(t('common.error'), t('book.failedBook') + ': ' + e.message);
         } finally {
             setSubmitting(false);
         }
@@ -202,7 +219,7 @@ export default function BookSlotScreen() {
     if (!slot || !offer) {
         return (
             <View style={styles.centerContainer}>
-                <Text style={styles.errorText}>Slot not found</Text>
+                <Text style={styles.errorText}>{t('detail.slotNotFound')}</Text>
             </View>
         );
     }
@@ -212,7 +229,7 @@ export default function BookSlotScreen() {
         return (
             <>
                 <Stack.Screen options={{
-                    title: 'Booking Confirmed',
+                    title: t('book.confirmed'),
                     headerTitleStyle: { fontWeight: '700', fontSize: 18 },
                     headerBackVisible: false,
                     headerShadowVisible: false,
@@ -223,16 +240,16 @@ export default function BookSlotScreen() {
                         <View style={styles.successIcon}>
                             <Ionicons name="checkmark-circle" size={80} color={Colors[colorScheme].success} />
                         </View>
-                        <Text style={styles.confirmationTitle}>Match Confirmed! 🎉</Text>
+                        <Text style={styles.confirmationTitle}>{t('book.confirmed')}</Text>
                         <Text style={styles.confirmationSubtitle}>
-                            You've successfully booked a match with {offer?.host_club || offer?.host_name}
+                            {t('book.confirmedDesc')}
                         </Text>
 
                         <Card style={styles.confirmationCard}>
                             <View style={styles.confirmationDetail}>
                                 <Ionicons name="calendar-outline" size={20} color={Colors[colorScheme].primary} />
                                 <View style={styles.confirmationDetailText}>
-                                    <Text style={styles.confirmationLabel}>Date & Time</Text>
+                                    <Text style={styles.confirmationLabel}>{t('detail.dateTime')}</Text>
                                     <Text style={styles.confirmationValue}>{formatDateTime(slot!.start_time)}</Text>
                                 </View>
                             </View>
@@ -240,7 +257,7 @@ export default function BookSlotScreen() {
                             <View style={styles.confirmationDetail}>
                                 <Ionicons name="location-outline" size={20} color={Colors[colorScheme].primary} />
                                 <View style={styles.confirmationDetailText}>
-                                    <Text style={styles.confirmationLabel}>Location</Text>
+                                    <Text style={styles.confirmationLabel}>{t('offer.locationLabel')}</Text>
                                     <Text style={styles.confirmationValue}>{offer?.location}</Text>
                                 </View>
                             </View>
@@ -248,20 +265,34 @@ export default function BookSlotScreen() {
                             <View style={styles.confirmationDetail}>
                                 <Ionicons name="shield-outline" size={20} color={Colors[colorScheme].primary} />
                                 <View style={styles.confirmationDetailText}>
-                                    <Text style={styles.confirmationLabel}>Host Team</Text>
+                                    <Text style={styles.confirmationLabel}>{t('offer.hostLabel')}</Text>
                                     <Text style={styles.confirmationValue}>{offer?.host_club || offer?.host_name}</Text>
                                 </View>
                             </View>
                         </Card>
 
                         <Text style={styles.confirmationNote}>
-                            The host coach will contact you to finalize match details.
+                            {t('book.confirmedDesc')}
                         </Text>
 
                         <Button
-                            title="Done"
-                            onPress={() => router.push('/')}
+                            title="Add to Calendar"
+                            onPress={async () => {
+                                const title = `${offer?.age_group} ${offer?.format} — ${guestClub} vs ${offer?.host_club || offer?.host_name}`;
+                                const success = await addMatchToCalendar(
+                                    slot!.start_time, slot!.end_time,
+                                    title, offer?.location || '',
+                                    `Host: ${offer?.host_name}\nContact: ${offer?.host_contact || ''}`
+                                );
+                                if (success) Alert.alert('Added!', 'Match added to your calendar.');
+                            }}
+                            variant="secondary"
                             style={styles.doneButton}
+                        />
+                        <Button
+                            title={t('common.ok')}
+                            onPress={() => router.push('/')}
+                            style={{ marginTop: 8 }}
                         />
                     </View>
                 </View>
@@ -272,9 +303,9 @@ export default function BookSlotScreen() {
     return (
         <>
             <Stack.Screen options={{
-                title: 'Book Slot',
+                title: t('book.title'),
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
-                headerBackTitle: 'Back',
+                headerBackTitle: t('common.back'),
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors[colorScheme].background },
                 headerTintColor: Colors[colorScheme].text,
@@ -291,51 +322,51 @@ export default function BookSlotScreen() {
                     <Card style={styles.summaryCard}>
                         <View style={styles.summaryHeader}>
                             <Ionicons name="checkmark-circle" size={32} color={Colors[colorScheme].success} />
-                            <Text style={styles.summaryTitle}>Selected Slot</Text>
+                            <Text style={styles.summaryTitle}>{t('book.matchDetails')}</Text>
                         </View>
 
                         <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>Match</Text>
+                            <Text style={styles.summaryLabel}>{t('book.matchDetails')}</Text>
                             <Text style={styles.summaryValue}>
                                 {offer.age_group} • {offer.format}
                             </Text>
                         </View>
 
                         <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>Date & Time</Text>
+                            <Text style={styles.summaryLabel}>{t('detail.dateTime')}</Text>
                             <Text style={styles.summaryValue}>
                                 {formatDateTime(slot.start_time)}
                             </Text>
                         </View>
 
                         <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>Location</Text>
+                            <Text style={styles.summaryLabel}>{t('offer.locationLabel')}</Text>
                             <Text style={styles.summaryValue}>{offer.location}</Text>
                         </View>
                     </Card>
 
                     {/* Booking Form */}
-                    <Text style={styles.sectionTitle}>Your Team Details</Text>
+                    <Text style={styles.sectionTitle}>{t('book.yourTeamDetails')}</Text>
                     <Text style={styles.sectionSubtitle}>
-                        Please provide your information so the host can contact you
+                        {t('book.yourTeamDetails')}
                     </Text>
 
                     <Input
-                        placeholder="Your Name *"
+                        placeholder={t('book.teamCoach')}
                         value={guestName}
                         onChangeText={setGuestName}
                         icon="person-outline"
                     />
 
                     <Input
-                        placeholder="Your Club Name *"
+                        placeholder={t('book.clubName')}
                         value={guestClub}
                         onChangeText={setGuestClub}
                         icon="shield-outline"
                     />
 
                     <Input
-                        placeholder="Contact (Email or Phone) *"
+                        placeholder={t('book.contactInfo')}
                         value={guestContact}
                         onChangeText={setGuestContact}
                         icon="call-outline"
@@ -344,7 +375,7 @@ export default function BookSlotScreen() {
                     />
 
                     <Input
-                        placeholder="Additional Notes (optional)"
+                        placeholder={t('book.notes')}
                         value={guestNotes}
                         onChangeText={setGuestNotes}
                         icon="document-text-outline"
@@ -357,14 +388,14 @@ export default function BookSlotScreen() {
                     <Card style={styles.infoCard}>
                         <Ionicons name="information-circle-outline" size={24} color={Colors[colorScheme].primary} />
                         <Text style={styles.infoText}>
-                            Your match will be confirmed immediately. The host coach will receive a notification and can contact you to finalize details.
+                            {t('book.confirmedDesc')}
                         </Text>
                     </Card>
                 </ScrollView>
 
                 <View style={styles.footer}>
                     <Button
-                        title="Confirm Match"
+                        title={t('book.confirmBooking')}
                         onPress={handleSubmit}
                         loading={submitting}
                     />

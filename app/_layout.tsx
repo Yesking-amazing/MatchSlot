@@ -3,12 +3,16 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import 'react-native-reanimated';
+import '@/lib/i18n';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { addNotificationResponseListener, registerForPushNotifications, sendPushToUser } from '@/lib/notifications';
+import { isOnboardingComplete } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 export {
@@ -24,7 +28,7 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-function useProtectedRoute(user: any, loading: boolean) {
+function useProtectedRoute(user: any, loading: boolean, resettingPassword: boolean) {
   const segments = useSegments();
   const router = useRouter();
 
@@ -34,23 +38,65 @@ function useProtectedRoute(user: any, loading: boolean) {
     const inAuthGroup = segments[0] === '(auth)';
 
     // Public routes that don't require authentication
-    const isPublicRoute = segments[0] === 'offer' || segments[0] === 'approve';
+    const isPublicRoute = segments[0] === 'offer' || segments[0] === 'approve' || segments[0] === 'reset-password';
+    const isOnboarding = segments[0] === 'onboarding';
 
     if (!user && !inAuthGroup && !isPublicRoute) {
       // Redirect to login if not authenticated and not on auth or public screen
       router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
+    } else if (user && inAuthGroup && !resettingPassword && !isOnboarding) {
       // Redirect to main app if authenticated but on auth screen
+      // Skip redirect if user is in the middle of resetting their password
       router.replace('/(tabs)');
     }
-  }, [user, segments, loading]);
+  }, [user, segments, loading, resettingPassword]);
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme() ?? 'light';
-  const { user, loading } = useAuth();
+  const { user, loading, resettingPassword } = useAuth();
 
-  useProtectedRoute(user, loading);
+  useProtectedRoute(user, loading, resettingPassword);
+
+  const router = useRouter();
+
+  // Register push token + check onboarding on login
+  useEffect(() => {
+    if (!user || loading) return;
+    registerForPushNotifications(user.id);
+    // Small delay to let navigation settle before redirecting
+    const timer = setTimeout(() => {
+      isOnboardingComplete(user.id).then(done => {
+        if (!done) router.replace('/onboarding' as any);
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [user?.id, loading]);
+
+  // Handle notification action responses (attendance Yes/No)
+  useEffect(() => {
+    const sub = addNotificationResponseListener(async (response: any) => {
+      const actionId = response?.actionIdentifier;
+      const data = response?.notification?.request?.content?.data;
+      if (!data || data.type !== 'attendance_check') return;
+
+      const slotId = data.slotId;
+      if (!slotId) return;
+
+      // Look up the slot to find the host
+      const { data: slot } = await supabase.from('slots').select('match_offer_id, guest_club').eq('id', slotId).single();
+      if (!slot) return;
+      const { data: offer } = await supabase.from('match_offers').select('created_by, age_group, format').eq('id', slot.match_offer_id).single();
+      if (!offer?.created_by) return;
+
+      if (actionId === 'CONFIRM_YES') {
+        await sendPushToUser(offer.created_by, 'Attendance Confirmed ✅', `${slot.guest_club || 'Your opponent'} confirmed they're coming to the ${offer.age_group} ${offer.format} match.`);
+      } else if (actionId === 'CONFIRM_NO') {
+        await sendPushToUser(offer.created_by, 'Attendance Cancelled ❌', `${slot.guest_club || 'Your opponent'} can\'t make it to the ${offer.age_group} ${offer.format} match.`);
+      }
+    });
+    return () => sub?.remove();
+  }, []);
 
   if (loading) {
     return (
@@ -65,6 +111,7 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false, headerBackTitle: 'Back' }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

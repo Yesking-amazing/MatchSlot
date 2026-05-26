@@ -5,6 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -18,6 +19,7 @@ import {
 
 export default function RegisterScreen() {
     const { signUp, loading } = useAuth();
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -27,16 +29,16 @@ export default function RegisterScreen() {
     const isDark = colorScheme === 'dark';
 
     const handleRegister = async () => {
-        if (!name || !email || !password || !confirmPassword) { setError('Please fill in all fields'); return; }
-        if (password !== confirmPassword) { setError('Passwords do not match'); return; }
-        if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+        if (!name || !email || !password || !confirmPassword) { setError(t('auth.fillAllFields')); return; }
+        if (password !== confirmPassword) { setError(t('auth.passwordMismatch')); return; }
+        if (password.length < 6) { setError(t('auth.passwordTooShort')); return; }
         setError(null);
         try {
             await signUp({ email: email.trim(), password, name: name.trim() });
-            Alert.alert('Account Created', 'Please check your email to verify your account, then sign in.',
-                [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]);
+            Alert.alert(t('auth.accountCreated'), t('auth.checkEmail'),
+                [{ text: t('common.ok'), onPress: () => router.replace('/(auth)/login') }]);
         } catch (err: any) {
-            setError(err.message || 'Failed to create account');
+            setError(err.message || t('auth.failedCreateAccount'));
         }
     };
 
@@ -55,9 +57,9 @@ export default function RegisterScreen() {
                     <View style={styles.logoContainer}>
                         <Text style={styles.logo}>⚽</Text>
                     </View>
-                    <Text style={[styles.title, { color: Colors[colorScheme].text }]}>Create Account</Text>
+                    <Text style={[styles.title, { color: Colors[colorScheme].text }]}>{t('auth.createAccount')}</Text>
                     <Text style={[styles.subtitle, { color: Colors[colorScheme].textSecondary }]}>
-                        Join MatchSlot today
+                        {t('auth.joinMatchslot')}
                     </Text>
                 </View>
 
@@ -71,25 +73,25 @@ export default function RegisterScreen() {
                         </View>
                     )}
 
-                    <Input label="Name" icon="person-outline" placeholder="Enter your name"
+                    <Input label={t('auth.name')} icon="person-outline" placeholder={t('auth.namePlaceholder')}
                         autoCapitalize="words" value={name} onChangeText={setName} />
-                    <Input label="Email" icon="mail-outline" placeholder="Enter your email"
+                    <Input label={t('auth.email')} icon="mail-outline" placeholder={t('auth.emailPlaceholder')}
                         keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
                         value={email} onChangeText={setEmail} />
-                    <Input label="Password" icon="lock-closed-outline" placeholder="Create a password"
+                    <Input label={t('auth.password')} icon="lock-closed-outline" placeholder={t('auth.createPasswordPlaceholder')}
                         secureTextEntry autoCapitalize="none" value={password} onChangeText={setPassword} />
-                    <Input label="Confirm Password" icon="lock-closed-outline" placeholder="Confirm your password"
+                    <Input label={t('auth.confirmPassword')} icon="lock-closed-outline" placeholder={t('auth.confirmPasswordPlaceholder')}
                         secureTextEntry autoCapitalize="none" value={confirmPassword} onChangeText={setConfirmPassword} />
 
-                    <Button title="Create Account" onPress={handleRegister} loading={loading} style={styles.button} />
+                    <Button title={t('auth.createAccount')} onPress={handleRegister} loading={loading} style={styles.button} />
 
                     <View style={styles.footer}>
                         <Text style={[styles.footerText, { color: Colors[colorScheme].textSecondary }]}>
-                            Already have an account?{' '}
+                            {t('auth.hasAccount')}{' '}
                         </Text>
                         <Link href="/(auth)/login" asChild>
                             <Pressable>
-                                <Text style={[styles.linkText, { color: Colors[colorScheme].primary }]}>Sign in</Text>
+                                <Text style={[styles.linkText, { color: Colors[colorScheme].primary }]}>{t('auth.signInLink')}</Text>
                             </Pressable>
                         </Link>
                     </View>

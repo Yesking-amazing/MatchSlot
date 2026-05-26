@@ -13,14 +13,30 @@
       "resizeMode": "contain",
       "backgroundColor": "#FAFAF9"
     },
+    "locales": {
+      "en": "./locales/en.json",
+      "de": "./locales/de.json",
+      "fr": "./locales/fr.json",
+      "it": "./locales/it.json"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.matchslot.app",
-      "buildNumber": "10",
+      "buildNumber": "24",
+      "userInterfaceStyle": "automatic",
       "infoPlist": {
+        "CFBundleLocalizations": ["en", "de", "fr", "it"],
+        "CFBundleDevelopmentRegion": "en",
         "NSCameraUsageDescription": "This app does not use the camera.",
         "NSPhotoLibraryUsageDescription": "This app does not access your photos.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIUserInterfaceStyle": "Automatic",
+        "NSUserNotificationsUsageDescription": "We notify you when matches are booked or approved.",
+        "NSCalendarsUsageDescription": "MatchSlot can add your booked matches to your calendar.",
+        "NSCalendarsFullAccessUsageDescription": "MatchSlot can add your booked matches to your calendar.",
+        "LSApplicationQueriesSchemes": [
+          "whatsapp"
+        ]
       }
     },
     "android": {
@@ -28,8 +44,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FAFAF9"
       },
+      "userInterfaceStyle": "automatic",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.matchslot.app"
     },
     "web": {
       "bundler": "metro",
@@ -39,6 +57,13 @@
     "plugins": [
       "expo-router",
       "expo-mail-composer",
+      "expo-notifications",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "MatchSlot needs access to your calendar to add match events."
+        }
+      ],
       [
         "expo-build-properties",
         {
@@ -46,7 +71,8 @@
             "deploymentTarget": "17.0"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

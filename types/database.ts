@@ -27,6 +27,9 @@ export interface MatchOffer {
   created_at: string;
   updated_at: string;
 
+  // Owner (linked to auth.users)
+  created_by?: string;
+
   // Host Coach Info
   host_name: string;
   host_club?: string;

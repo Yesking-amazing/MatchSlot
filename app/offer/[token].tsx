@@ -2,12 +2,14 @@ import { AppBanner } from '@/components/ui/AppBanner';
 import { Card } from '@/components/ui/Card';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { openInMaps } from '@/lib/mapsUtils';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots, Slot, SlotStatus } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 /**
  * Guest Coach View - US-GC-01, US-GC-02
@@ -16,6 +18,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacit
 export default function OfferViewScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
+    const { t } = useTranslation();
     const { token } = useLocalSearchParams<{ token: string }>();
     const [offer, setOffer] = useState<MatchOfferWithSlots | null>(null);
     const [loading, setLoading] = useState(true);
@@ -57,13 +60,13 @@ export default function OfferViewScreen() {
             if (offerError) throw offerError;
 
             if (!offerData) {
-                Alert.alert('Not Found', 'This match offer does not exist.');
+                Alert.alert(t('offer.notFound'), t('offer.notFoundDesc'));
                 return;
             }
 
             // Check if offer is open
             if (offerData.status !== 'OPEN') {
-                Alert.alert('Closed', 'This match offer is no longer accepting bookings.');
+                Alert.alert(t('offer.closed'), t('offer.closedMessage'));
             }
 
             // Load slots
@@ -81,7 +84,7 @@ export default function OfferViewScreen() {
             });
         } catch (e: any) {
             console.error(e);
-            Alert.alert('Error', 'Failed to load match offer');
+            Alert.alert(t('common.error'), t('offer.notFoundDesc'));
         } finally {
             setLoading(false);
         }
@@ -93,7 +96,7 @@ export default function OfferViewScreen() {
         // Check if slot is still available
         const slot = offer.slots.find(s => s.id === slotId);
         if (!slot || slot.status !== 'OPEN') {
-            Alert.alert('Unavailable', 'This slot is no longer available. Please select another slot.');
+            Alert.alert(t('offer.notAvailable'), t('offer.slotUnavailable'));
             loadOffer(); // Refresh to get latest status
             return;
         }
@@ -126,15 +129,15 @@ export default function OfferViewScreen() {
     const getStatusLabel = (status: SlotStatus) => {
         switch (status) {
             case 'OPEN':
-                return 'Available';
+                return t('offer.available');
             case 'HELD':
-                return 'Held (Temporarily)';
+                return t('offer.heldTemporarily');
             case 'PENDING_APPROVAL':
-                return 'Pending Approval';
+                return t('offer.pendingApproval');
             case 'BOOKED':
-                return 'Booked';
+                return t('offer.slotBooked');
             case 'REJECTED':
-                return 'No Longer Available';
+                return t('offer.notAvailable');
             default:
                 return status;
         }
@@ -175,8 +178,8 @@ export default function OfferViewScreen() {
         return (
             <View style={styles.centerContainer}>
                 <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
-                <Text style={styles.errorTitle}>Offer Not Found</Text>
-                <Text style={styles.errorSubtitle}>This match offer does not exist or has been removed.</Text>
+                <Text style={styles.errorTitle}>{t('offer.notFound')}</Text>
+                <Text style={styles.errorSubtitle}>{t('offer.notFoundDesc')}</Text>
             </View>
         );
     }
@@ -184,9 +187,9 @@ export default function OfferViewScreen() {
     return (
         <>
             <Stack.Screen options={{
-                title: 'Match Offer',
+                title: t('offer.title'),
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
-                headerBackTitle: 'Back',
+                headerBackTitle: t('common.back'),
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors[colorScheme].background },
                 headerTintColor: Colors[colorScheme].text,
@@ -204,38 +207,39 @@ export default function OfferViewScreen() {
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.mainTitle}>
-                                    {offer.age_group} Football Match
+                                    {offer.age_group} {t('offer.footballMatch')}
                                 </Text>
                                 <Text style={styles.formatText}>{offer.format}</Text>
                             </View>
                             {offer.status !== 'OPEN' && (
                                 <View style={styles.closedBadge}>
-                                    <Text style={styles.closedBadgeText}>CLOSED</Text>
+                                    <Text style={styles.closedBadgeText}>{t('offer.closed')}</Text>
                                 </View>
                             )}
                         </View>
 
                         <View style={styles.detailsGrid}>
-                            <View style={styles.detailRow}>
+                            <Pressable style={styles.detailRow} onPress={() => openInMaps(offer.location)}>
                                 <Ionicons name="location" size={20} color={Colors[colorScheme].primary} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>Location</Text>
-                                    <Text style={styles.detailValue}>{offer.location}</Text>
+                                    <Text style={styles.detailLabel}>{t('offer.locationLabel')}</Text>
+                                    <Text style={[styles.detailValue, { color: Colors[colorScheme].primary }]}>{offer.location}</Text>
                                 </View>
-                            </View>
+                                <Ionicons name="navigate-outline" size={16} color={Colors[colorScheme].primary} />
+                            </Pressable>
 
                             <View style={styles.detailRow}>
                                 <Ionicons name="timer" size={20} color={Colors[colorScheme].primary} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>Duration</Text>
-                                    <Text style={styles.detailValue}>{offer.duration} minutes</Text>
+                                    <Text style={styles.detailLabel}>{t('offer.durationLabel')}</Text>
+                                    <Text style={styles.detailValue}>{offer.duration} {t('common.minutes')}</Text>
                                 </View>
                             </View>
 
                             <View style={styles.detailRow}>
                                 <Ionicons name="person" size={20} color={Colors[colorScheme].primary} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>Host</Text>
+                                    <Text style={styles.detailLabel}>{t('offer.hostLabel')}</Text>
                                     <Text style={styles.detailValue}>
                                         {offer.host_name}
                                         {offer.host_club && ` (${offer.host_club})`}
@@ -247,7 +251,7 @@ export default function OfferViewScreen() {
                                 <View style={styles.detailRow}>
                                     <Ionicons name="information-circle" size={20} color={Colors[colorScheme].primary} />
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.detailLabel}>Additional Info</Text>
+                                        <Text style={styles.detailLabel}>{t('offer.additionalInfo')}</Text>
                                         <Text style={styles.detailValue}>{offer.notes}</Text>
                                     </View>
                                 </View>
@@ -256,14 +260,14 @@ export default function OfferViewScreen() {
                     </Card>
 
                     {/* Time Slots */}
-                    <Text style={styles.sectionTitle}>Available Time Slots</Text>
+                    <Text style={styles.sectionTitle}>{t('offer.availableSlots')}</Text>
                     <Text style={styles.sectionSubtitle}>
-                        Select a time slot that works for your team
+                        {t('offer.selectSlotDesc')}
                     </Text>
 
                     {offer.slots.length === 0 ? (
                         <Card style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>No time slots available</Text>
+                            <Text style={styles.emptyText}>{t('offer.noSlots')}</Text>
                         </Card>
                     ) : (
                         offer.slots.map((slot) => {
@@ -300,7 +304,7 @@ export default function OfferViewScreen() {
                                                 style={styles.selectButton}
                                                 onPress={() => handleSelectSlot(slot.id)}
                                             >
-                                                <Text style={styles.selectButtonText}>Select</Text>
+                                                <Text style={styles.selectButtonText}>{t('offer.select')}</Text>
                                                 <Ionicons name="arrow-forward" size={20} color="#fff" />
                                             </TouchableOpacity>
                                         ) : (

@@ -8,12 +8,16 @@ import {
     SignUpData,
 } from '@/lib/auth';
 import { Session, User } from '@supabase/supabase-js';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
+    resettingPassword: boolean;
+    setResettingPassword: (val: boolean) => void;
     signIn: (data: SignInData) => Promise<void>;
     signUp: (data: SignUpData) => Promise<void>;
     signOut: () => Promise<void>;
@@ -29,6 +33,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
+    const [resettingPassword, setResettingPassword] = useState(false);
+    const router = useRouter();
 
     useEffect(() => {
         // Get initial session
@@ -50,6 +56,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
+
+            // When Supabase detects a PASSWORD_RECOVERY event from the URL,
+            // redirect to the reset password page
+            if (event === 'PASSWORD_RECOVERY' && Platform.OS === 'web') {
+                router.replace('/reset-password' as any);
+            }
         });
 
         return () => {
@@ -58,11 +70,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     const signIn = async (data: SignInData) => {
-        setLoading(true);
         try {
-            await authSignIn(data);
-        } finally {
-            setLoading(false);
+            const result = await authSignIn(data);
+            setSession(result.session);
+            setUser(result.session?.user ?? null);
+            return result;
+        } catch (error) {
+            throw error;
         }
     };
 
@@ -90,6 +104,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 user,
                 session,
                 loading,
+                resettingPassword,
+                setResettingPassword,
                 signIn,
                 signUp,
                 signOut,

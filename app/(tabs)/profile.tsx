@@ -3,52 +3,69 @@ import { Input } from '@/components/ui/Input';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
-import { getClubName, saveClubName } from '@/lib/storage';
+import { getSavedLanguage, setAppLanguage } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
     const { user } = useAuth();
     const [clubName, setClubName] = useState('');
     const [savedClubName, setSavedClubName] = useState('');
     const [editingClub, setEditingClub] = useState(false);
+    const [currentLang, setCurrentLang] = useState<string | null>(null);
+    const [showLangPicker, setShowLangPicker] = useState(false);
+
+    const LANGUAGES = [
+        { code: null, label: t('profile.languageSystem') },
+        { code: 'en', label: t('profile.languageEnglish') },
+        { code: 'de', label: t('profile.languageGerman') },
+        { code: 'fr', label: t('profile.languageFrench') },
+        { code: 'it', label: t('profile.languageItalian') },
+    ];
 
     const userEmail = user?.email ?? null;
 
     useEffect(() => {
-        if (user) {
-            getClubName(user.id).then(saved => {
-                if (saved) {
-                    setClubName(saved);
-                    setSavedClubName(saved);
-                }
-            });
+        if (user?.user_metadata?.club_name) {
+            setClubName(user.user_metadata.club_name);
+            setSavedClubName(user.user_metadata.club_name);
         }
+        getSavedLanguage().then(setCurrentLang);
     }, [user]);
+
+    const handleLanguageChange = async (code: string | null) => {
+        await setAppLanguage(code);
+        setCurrentLang(code);
+        setShowLangPicker(false);
+    };
+
+    const currentLangLabel = LANGUAGES.find(l => l.code === currentLang)?.label ?? t('profile.languageSystem');
 
     const handleSaveClubName = async () => {
         if (!user) return;
         const trimmed = clubName.trim();
-        await saveClubName(user.id, trimmed);
+        await supabase.auth.updateUser({ data: { club_name: trimmed } });
         setSavedClubName(trimmed);
         setEditingClub(false);
     };
 
     const handleLogout = async () => {
-        Alert.alert('Log Out', 'Are you sure you want to log out?', [
-            { text: 'Cancel', style: 'cancel' },
+        Alert.alert(t('profile.logOut'), t('profile.logOutConfirm'), [
+            { text: t('common.cancel'), style: 'cancel' },
             {
-                text: 'Log Out',
+                text: t('profile.logOut'),
                 style: 'destructive',
                 onPress: async () => {
                     const { error } = await supabase.auth.signOut();
-                    if (error) Alert.alert('Error', error.message);
+                    if (error) Alert.alert(t('common.error'), error.message);
                     else router.replace('/(auth)/login');
                 },
             },
@@ -81,7 +98,7 @@ export default function ProfileScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
                 <View style={styles.header}>
-                    <Text style={styles.title}>Profile</Text>
+                    <Text style={styles.title}>{t('profile.title')}</Text>
                 </View>
 
                 {/* Hero Card */}
@@ -95,20 +112,20 @@ export default function ProfileScreen() {
 
                         <View style={styles.profileInfo}>
                             <Text style={styles.profileName}>Coach</Text>
-                            <Text style={styles.profileEmail} numberOfLines={1}>{userEmail || 'Loading...'}</Text>
+                            <Text style={styles.profileEmail} numberOfLines={1}>{userEmail || t('common.loading')}</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Club Name Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Club Info</Text>
+                    <Text style={styles.sectionHeader}>{t('profile.clubInfo')}</Text>
                     <Card style={styles.settingsCard}>
                         {editingClub ? (
                             <View style={styles.editClubRow}>
                                 <View style={styles.editClubInput}>
                                     <Input
-                                        placeholder="Enter your club name"
+                                        placeholder={t('profile.enterClubName')}
                                         value={clubName}
                                         onChangeText={setClubName}
                                         autoFocus
@@ -116,7 +133,7 @@ export default function ProfileScreen() {
                                 </View>
                                 <View style={styles.editClubButtons}>
                                     <TouchableOpacity style={styles.saveButton} onPress={handleSaveClubName}>
-                                        <Text style={styles.saveButtonText}>Save</Text>
+                                        <Text style={styles.saveButtonText}>{t('common.save')}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.cancelButton}
@@ -125,14 +142,14 @@ export default function ProfileScreen() {
                                             setEditingClub(false);
                                         }}
                                     >
-                                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                                        <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         ) : (
                             <SettingsRow
                                 icon="shield-outline"
-                                label={savedClubName || 'Add Club Name'}
+                                label={savedClubName || t('profile.addClubName')}
                                 onPress={() => setEditingClub(true)}
                                 rightElement={
                                     <Ionicons name="create-outline" size={20} color={Colors[colorScheme].textTertiary} />
@@ -142,24 +159,60 @@ export default function ProfileScreen() {
                     </Card>
                 </View>
 
+                {/* Language Picker */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Support & Feedback</Text>
+                    <Text style={styles.sectionHeader}>{t('profile.language')}</Text>
                     <Card style={styles.settingsCard}>
-                        <SettingsRow icon="chatbubble-outline" label="Send Feedback" onPress={handleFeedback} />
-                        <View style={styles.divider} />
-                        <SettingsRow icon="shield-checkmark-outline" label="Privacy Policy" onPress={handlePrivacy} />
+                        <SettingsRow
+                            icon="language-outline"
+                            label={currentLangLabel}
+                            onPress={() => setShowLangPicker(true)}
+                        />
                     </Card>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Account</Text>
+                    <Text style={styles.sectionHeader}>{t('profile.supportFeedback')}</Text>
                     <Card style={styles.settingsCard}>
-                        <SettingsRow icon="log-out-outline" label="Log Out" onPress={handleLogout} destructive />
+                        <SettingsRow icon="chatbubble-outline" label={t('profile.sendFeedback')} onPress={handleFeedback} />
+                        <View style={styles.divider} />
+                        <SettingsRow icon="shield-checkmark-outline" label={t('profile.privacyPolicy')} onPress={handlePrivacy} />
+                    </Card>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>{t('profile.account')}</Text>
+                    <Card style={styles.settingsCard}>
+                        <SettingsRow icon="log-out-outline" label={t('profile.logOut')} onPress={handleLogout} destructive />
                     </Card>
                 </View>
 
                 <Text style={styles.versionText}>MatchSlot v1.9.1</Text>
             </ScrollView>
+
+            {/* Language Picker Modal */}
+            <Modal visible={showLangPicker} transparent animationType="slide">
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLangPicker(false)}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>{t('profile.selectLanguage')}</Text>
+                        {LANGUAGES.map((lang) => (
+                            <Pressable
+                                key={lang.code ?? 'system'}
+                                style={styles.langOption}
+                                onPress={() => handleLanguageChange(lang.code)}
+                            >
+                                <Text style={[
+                                    styles.langOptionText,
+                                    currentLang === lang.code && styles.langOptionActive,
+                                ]}>{lang.label}</Text>
+                                {currentLang === lang.code && (
+                                    <Ionicons name="checkmark" size={22} color={Colors[colorScheme].primary} />
+                                )}
+                            </Pressable>
+                        ))}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -326,6 +379,44 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     cancelButtonText: {
         color: Colors[colorScheme].text,
         fontSize: 15,
+        fontWeight: '600',
+    },
+
+    // Language modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: Colors[colorScheme].backgroundAlt,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: Colors[colorScheme].cardBorder,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        textAlign: 'center',
+        color: Colors[colorScheme].text,
+        marginBottom: 8,
+    },
+    langOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors[colorScheme].border,
+    },
+    langOptionText: {
+        fontSize: 17,
+        color: Colors[colorScheme].text,
+    },
+    langOptionActive: {
+        color: Colors[colorScheme].primary,
         fontWeight: '600',
     },
 

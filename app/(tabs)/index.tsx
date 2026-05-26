@@ -5,13 +5,13 @@ import { HomeSkeleton } from '@/components/ui/SkeletonLoader';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
-import { getMyMatchIds } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats>({ totalOffers: 0, activeOffers: 0, bookedSlots: 0 });
   const [upcomingSlots, setUpcomingSlots] = useState<any[]>([]);
   const [recentOffers, setRecentOffers] = useState<MatchOfferWithSlots[]>([]);
@@ -34,42 +35,43 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return t('home.goodMorning');
+    if (hour < 17) return t('home.goodAfternoon');
+    return t('home.goodEvening');
   };
 
   const loadDashboard = async () => {
     try {
       if (!user) { setLoading(false); setRefreshing(false); return; }
-      const myMatchIds = await getMyMatchIds(user.id);
 
-      if (myMatchIds.length === 0) {
-        setStats({ totalOffers: 0, activeOffers: 0, bookedSlots: 0 });
-        setUpcomingSlots([]);
-        setRecentOffers([]);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
+      // Query matches owned by this user directly from the database
       const { data: offersData, error: offersError } = await supabase
         .from('match_offers')
         .select('*')
-        .in('id', myMatchIds)
+        .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
       if (offersError) throw offersError;
 
+      const offers = offersData || [];
+
+      if (offers.length === 0) {
+        setStats({ totalOffers: 0, activeOffers: 0, bookedSlots: 0 });
+        setUpcomingSlots([]);
+        setRecentOffers([]);
+        return;
+      }
+
+      const offerIds = offers.map(o => o.id);
+
       const { data: allSlots, error: slotsError } = await supabase
         .from('slots')
         .select('*, match_offers!inner(age_group, format, location, host_name)')
-        .in('match_offer_id', myMatchIds)
+        .in('match_offer_id', offerIds)
         .order('start_time', { ascending: true });
 
       if (slotsError) throw slotsError;
 
-      const offers = offersData || [];
       const slots = allSlots || [];
 
       const activeOffers = offers.filter(o => o.status === 'OPEN' || o.status === 'PENDING_APPROVAL').length;
@@ -156,8 +158,8 @@ export default function HomeScreen() {
         {/* ── Hero Band ── */}
         <View style={styles.heroBand}>
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
-            <Text style={styles.greeting}>{getGreeting()}, Coach</Text>
-            <Text style={styles.subtitle}>Here's what's happening</Text>
+            <Text style={styles.greeting}>{getGreeting()}, {t('home.coach')}</Text>
+            <Text style={styles.subtitle}>{t('home.whatsHappening')}</Text>
           </Animated.View>
 
           {/* Stats Row — Redesigned with large numbers */}
@@ -167,7 +169,7 @@ export default function HomeScreen() {
                 <Ionicons name="football" size={18} color={Colors[colorScheme].primary} />
               </View>
               <Text style={styles.statValue}>{stats.totalOffers}</Text>
-              <Text style={styles.statLabel}>Matches Created</Text>
+              <Text style={styles.statLabel}>{t('home.matchesCreated')}</Text>
             </View>
 
             <View style={styles.statCard}>
@@ -175,7 +177,7 @@ export default function HomeScreen() {
                 <Ionicons name="pulse" size={18} color={Colors[colorScheme].warning} />
               </View>
               <Text style={styles.statValue}>{stats.activeOffers}</Text>
-              <Text style={styles.statLabel}>Open Now</Text>
+              <Text style={styles.statLabel}>{t('home.openNow')}</Text>
             </View>
 
             <View style={styles.statCard}>
@@ -183,7 +185,7 @@ export default function HomeScreen() {
                 <Ionicons name="checkmark-circle" size={18} color={Colors[colorScheme].success} />
               </View>
               <Text style={styles.statValue}>{stats.bookedSlots}</Text>
-              <Text style={styles.statLabel}>Confirmed</Text>
+              <Text style={styles.statLabel}>{t('home.confirmed')}</Text>
             </View>
           </Animated.View>
         </View>
@@ -193,22 +195,22 @@ export default function HomeScreen() {
 
           {/* Quick Actions */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
-            <SectionTitle label="Quick Actions" colorScheme={colorScheme} />
+            <SectionTitle label={t('home.quickActions')} colorScheme={colorScheme} />
             <View style={styles.actionsRow}>
               <AnimatedPressable style={styles.actionCard} onPress={() => router.push('/match/create')} scaleTo={0.93}>
                 <View style={styles.actionIconCircle}>
                   <Ionicons name="add" size={26} color="#fff" />
                 </View>
-                <Text style={styles.actionText}>Create Offer</Text>
-                <Text style={styles.actionSubtext}>New match slot</Text>
+                <Text style={styles.actionText}>{t('home.createOffer')}</Text>
+                <Text style={styles.actionSubtext}>{t('home.newMatchSlot')}</Text>
               </AnimatedPressable>
 
               <AnimatedPressable style={styles.actionCard} onPress={() => router.push('/(tabs)/manage')} scaleTo={0.93}>
                 <View style={styles.actionIconCircle}>
                   <Ionicons name="list" size={26} color="#fff" />
                 </View>
-                <Text style={styles.actionText}>My Matches</Text>
-                <Text style={styles.actionSubtext}>View & manage</Text>
+                <Text style={styles.actionText}>{t('home.myMatches')}</Text>
+                <Text style={styles.actionSubtext}>{t('home.viewManage')}</Text>
               </AnimatedPressable>
             </View>
           </Animated.View>
@@ -216,10 +218,11 @@ export default function HomeScreen() {
           {/* Upcoming Matches */}
           <Animated.View entering={FadeInDown.delay(400).springify()}>
             <SectionTitle
-              label="Upcoming Matches"
+              label={t('home.upcomingMatches')}
               colorScheme={colorScheme}
               count={upcomingSlots.length > 0 ? upcomingSlots.length : undefined}
               onSeeAll={upcomingSlots.length > 0 ? () => router.push('/(tabs)/manage') : undefined}
+              seeAllLabel={t('home.seeAll')}
             />
           </Animated.View>
 
@@ -228,10 +231,10 @@ export default function HomeScreen() {
               <View style={styles.emptyIconWrap}>
                 <Ionicons name="calendar-outline" size={36} color={Colors[colorScheme].primary} />
               </View>
-              <Text style={styles.emptyText}>No upcoming matches</Text>
-              <Text style={styles.emptySubtext}>Create a match offer and share it with other coaches to schedule your next game</Text>
+              <Text style={styles.emptyText}>{t('home.noUpcoming')}</Text>
+              <Text style={styles.emptySubtext}>{t('home.noUpcomingDesc')}</Text>
               <Button
-                title="Create Your First Match"
+                title={t('home.createFirstMatch')}
                 onPress={() => router.push('/match/create')}
                 variant="secondary"
                 style={{ marginTop: 8 }}
@@ -271,10 +274,11 @@ export default function HomeScreen() {
           {/* Recent Activity */}
           <Animated.View entering={FadeInDown.delay(500).springify()}>
             <SectionTitle
-              label="Recent Activity"
+              label={t('home.recentActivity')}
               colorScheme={colorScheme}
               count={recentOffers.length > 0 ? recentOffers.length : undefined}
               onSeeAll={recentOffers.length > 0 ? () => router.push('/(tabs)/manage') : undefined}
+              seeAllLabel={t('home.seeAll')}
             />
           </Animated.View>
 
@@ -283,8 +287,8 @@ export default function HomeScreen() {
               <View style={styles.emptyIconWrap}>
                 <Ionicons name="time-outline" size={36} color={Colors[colorScheme].primary} />
               </View>
-              <Text style={styles.emptyText}>No recent activity</Text>
-              <Text style={styles.emptySubtext}>Your match offers and booking activity will appear here</Text>
+              <Text style={styles.emptyText}>{t('home.noRecent')}</Text>
+              <Text style={styles.emptySubtext}>{t('home.noRecentDesc')}</Text>
             </Card>
           ) : (
             recentOffers.map((offer, index) => (
@@ -295,7 +299,7 @@ export default function HomeScreen() {
                       <Text style={styles.activityTitle}>{offer.age_group} • {offer.format}</Text>
                       <Text style={styles.activityLocation}>{offer.location}</Text>
                       <Text style={styles.activitySlots}>
-                        {offer.slots.length} {offer.slots.length === 1 ? 'slot' : 'slots'}
+                        {offer.slots.length} {offer.slots.length === 1 ? t('common.slot') : t('common.slots')}
                       </Text>
                     </View>
                     <View style={[styles.statusBadge, {
@@ -340,11 +344,13 @@ function SectionTitle({
   colorScheme,
   count,
   onSeeAll,
+  seeAllLabel,
 }: {
   label: string;
   colorScheme: 'light' | 'dark';
   count?: number;
   onSeeAll?: () => void;
+  seeAllLabel?: string;
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -366,7 +372,7 @@ function SectionTitle({
       </View>
       {onSeeAll && (
         <Pressable onPress={onSeeAll} hitSlop={8}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors[colorScheme].primary }}>See all</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors[colorScheme].primary }}>{seeAllLabel || 'See all'}</Text>
         </Pressable>
       )}
     </View>

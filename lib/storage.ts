@@ -71,3 +71,48 @@ export async function saveClubName(userId: string, name: string): Promise<void> 
         console.error('Failed to save club name', e);
     }
 }
+
+// ── Onboarding ──
+
+function onboardingKey(userId: string) {
+    return `matchslot_onboarding_${userId}`;
+}
+
+export async function isOnboardingComplete(userId: string): Promise<boolean> {
+    try {
+        return (await AsyncStorage.getItem(onboardingKey(userId))) === 'true';
+    } catch {
+        return false;
+    }
+}
+
+export async function markOnboardingComplete(userId: string): Promise<void> {
+    try {
+        await AsyncStorage.setItem(onboardingKey(userId), 'true');
+    } catch (e) {
+        console.error('Failed to save onboarding status', e);
+    }
+}
+
+// ── Notification ID storage (for cancelling scheduled notifications) ──
+
+function reminderKey(slotId: string) {
+    return `matchslot_reminder_${slotId}`;
+}
+
+export async function saveReminderIds(slotId: string, ids: string[]): Promise<void> {
+    try {
+        await AsyncStorage.setItem(reminderKey(slotId), JSON.stringify(ids));
+    } catch (e) {
+        console.error('Failed to save reminder IDs', e);
+    }
+}
+
+export async function getReminderIds(slotId: string): Promise<string[]> {
+    try {
+        const val = await AsyncStorage.getItem(reminderKey(slotId));
+        return val ? JSON.parse(val) : [];
+    } catch {
+        return [];
+    }
+}

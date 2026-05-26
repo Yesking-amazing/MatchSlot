@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateApprovalLink } from '@/lib/shareLink';
-import { getClubName, saveClubName, saveMyMatchId } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { AgeGroup, MatchFormat } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as MailComposer from 'expo-mail-composer';
 import { Stack, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -42,6 +42,7 @@ interface TimeSlot {
 export default function CreateMatchScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
+    const { t } = useTranslation();
     const { user } = useAuth();
 
     // Host Info - pre-filled from logged-in user
@@ -77,7 +78,7 @@ export default function CreateMatchScreen() {
     const formats: MatchFormat[] = ['5v5', '7v7', '9v9', '11v11'];
     const durations = [60, 70, 80, 90, 100, 120];
 
-    // Pre-fill user info from logged-in user and saved club name
+    // Pre-fill user info from logged-in user
     useEffect(() => {
         if (user) {
             setHostContact(user.email || '');
@@ -85,12 +86,10 @@ export default function CreateMatchScreen() {
             if (metadata?.name) {
                 setHostName(metadata.name);
             }
-        }
-        // Load saved club name
-        if (user) {
-            getClubName(user.id).then(saved => {
-                if (saved) setHostClub(saved);
-            });
+            // Load club name from user metadata (syncs across devices)
+            if (metadata?.club_name) {
+                setHostClub(metadata.club_name);
+            }
         }
     }, [user]);
 
@@ -135,32 +134,32 @@ export default function CreateMatchScreen() {
     const handleCreate = async () => {
         // Validation
         if (!hostName.trim()) {
-            Alert.alert('Required', 'Please enter your name');
+            Alert.alert(t('common.required'), t('create.enterName'));
             return;
         }
         if (!location.trim()) {
-            Alert.alert('Required', 'Please enter a location');
+            Alert.alert(t('common.required'), t('create.enterLocation'));
             return;
         }
         if (timeSlots.length === 0) {
-            Alert.alert('Required', 'Please add at least one time slot');
+            Alert.alert(t('common.required'), t('create.addAtLeastOneSlot'));
             return;
         }
         if (!approverEmail.trim()) {
-            Alert.alert('Required', 'Please enter an approver email');
+            Alert.alert(t('common.required'), t('create.enterApproverEmail'));
             return;
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(approverEmail)) {
-            Alert.alert('Invalid Email', 'Please enter a valid email address');
+            Alert.alert(t('create.invalidEmail'), t('create.invalidEmail'));
             return;
         }
 
         setLoading(true);
         try {
-            // Save club name for future use
+            // Save club name to user metadata (syncs across devices)
             if (hostClub.trim() && user) {
-                await saveClubName(user.id, hostClub.trim());
+                await supabase.auth.updateUser({ data: { club_name: hostClub.trim() } });
             }
 
             // Generate unique share token
@@ -181,6 +180,7 @@ export default function CreateMatchScreen() {
                     share_token: shareToken,
                     approver_email: approverEmail,
                     status: 'PENDING_APPROVAL',
+                    created_by: user!.id,
                 })
                 .select()
                 .single();
@@ -189,9 +189,6 @@ export default function CreateMatchScreen() {
 
             // 2. Create Time Slots
             if (offerData) {
-                // Save locally to "My Matches"
-                await saveMyMatchId(user!.id, offerData.id);
-
                 const slotsToInsert = timeSlots.map(slot => {
                     // Combine date with start/end times
                     const startDateTime = new Date(slot.date);
@@ -245,17 +242,17 @@ export default function CreateMatchScreen() {
             }
 
             Alert.alert(
-                'Approval Required',
-                'Your match offer has been created! An approval request has been sent to your approver. The share link will be available once approved.',
-                [{ text: 'OK', onPress: () => router.back() }]
+                t('create.approvalRequired'),
+                t('create.approvalSent'),
+                [{ text: t('common.ok'), onPress: () => router.back() }]
             );
         } catch (e: any) {
             console.error('Create match error:', e);
             console.error('Error details:', JSON.stringify(e, null, 2));
             Alert.alert(
-                'Error Creating Match',
-                e.message || 'Unknown error occurred. Check your database connection.',
-                [{ text: 'OK' }]
+                t('create.createError'),
+                e.message || t('create.unknownError'),
+                [{ text: t('common.ok') }]
             );
         } finally {
             setLoading(false);
@@ -272,8 +269,8 @@ export default function CreateMatchScreen() {
     return (
         <>
             <Stack.Screen options={{
-                title: 'Create Match Offer',
-                headerBackTitle: 'Back',
+                title: t('create.title'),
+                headerBackTitle: t('common.back'),
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors[colorScheme].background },
@@ -288,31 +285,31 @@ export default function CreateMatchScreen() {
                 <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
                     {/* Host Information */}
-                    <Text style={styles.sectionHeader}>Your Details</Text>
+                    <Text style={styles.sectionHeader}>{t('create.yourDetails')}</Text>
                     <Input
-                        placeholder="Your Name *"
+                        placeholder={t('create.yourName')}
                         value={hostName}
                         onChangeText={setHostName}
                     />
                     <Input
-                        placeholder="Your Club"
+                        placeholder={t('create.yourClub')}
                         value={hostClub}
                         onChangeText={setHostClub}
                     />
                     <Input
-                        placeholder="Contact (Email/Phone)"
+                        placeholder={t('create.contact')}
                         value={hostContact}
                         onChangeText={setHostContact}
                     />
 
                     {/* Match Details */}
-                    <Text style={styles.sectionHeader}>Match Details</Text>
+                    <Text style={styles.sectionHeader}>{t('create.matchDetails')}</Text>
                     <View style={styles.section}>
                         {/* Age Group */}
                         <Card style={styles.rowCard}>
                             <SelectionRow
                                 icon="people-outline"
-                                label={`Age Group: ${ageGroup}`}
+                                label={`${t('create.ageGroup')}: ${ageGroup}`}
                                 rightElement={
                                     <Ionicons name="chevron-forward" size={20} color={Colors[colorScheme].textSecondary} />
                                 }
@@ -324,7 +321,7 @@ export default function CreateMatchScreen() {
                         <Card style={styles.rowCard}>
                             <SelectionRow
                                 icon="football-outline"
-                                label={`Format: ${format}`}
+                                label={`${t('create.format')}: ${format}`}
                                 rightElement={
                                     <Ionicons name="chevron-forward" size={20} color={Colors[colorScheme].textSecondary} />
                                 }
@@ -336,7 +333,7 @@ export default function CreateMatchScreen() {
                         <Card style={styles.rowCard}>
                             <SelectionRow
                                 icon="timer-outline"
-                                label={`Duration: ${duration} minutes`}
+                                label={`${t('create.duration')}: ${duration} ${t('common.minutes')}`}
                                 rightElement={
                                     <Ionicons name="chevron-forward" size={20} color={Colors[colorScheme].textSecondary} />
                                 }
@@ -345,14 +342,14 @@ export default function CreateMatchScreen() {
                         </Card>
 
                         <Input
-                            placeholder="Location *"
+                            placeholder={t('create.location')}
                             value={location}
                             onChangeText={setLocation}
                         />
 
                         {/* Approver Email */}
                         <Input
-                            placeholder="Approver Email *"
+                            placeholder={t('create.approverEmail')}
                             value={approverEmail}
                             onChangeText={setApproverEmail}
                             keyboardType="email-address"
@@ -361,7 +358,7 @@ export default function CreateMatchScreen() {
 
                         {/* Notes */}
                         <Input
-                            placeholder="Additional Notes (optional)"
+                            placeholder={t('create.additionalNotes')}
                             value={notes}
                             onChangeText={setNotes}
                             multiline
@@ -370,7 +367,7 @@ export default function CreateMatchScreen() {
 
                     {/* Time Slots */}
                     <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionHeader}>Available Time Slots *</Text>
+                        <Text style={styles.sectionHeader}>{t('create.availableSlots')}</Text>
                         <TouchableOpacity onPress={addTimeSlot}>
                             <Ionicons name="add-circle" size={28} color={Colors[colorScheme].primary} />
                         </TouchableOpacity>
@@ -383,8 +380,8 @@ export default function CreateMatchScreen() {
                                 <View style={styles.emptyBoardLine} />
                                 <View style={styles.emptyBoardLine} />
                             </View>
-                            <Text style={styles.emptyText}>No time slots pinned</Text>
-                            <Text style={styles.emptySubtext}>Tap + to pin a slot to the board</Text>
+                            <Text style={styles.emptyText}>{t('create.noSlots')}</Text>
+                            <Text style={styles.emptySubtext}>{t('create.tapToAdd')}</Text>
                         </View>
                     ) : (
                         timeSlots.map((slot, index) => (
@@ -404,7 +401,7 @@ export default function CreateMatchScreen() {
                 </ScrollView>
 
                 <View style={styles.footer}>
-                    <Button title="Create Match Offer" onPress={handleCreate} loading={loading} />
+                    <Button title={t('create.title')} onPress={handleCreate} loading={loading} />
                 </View>
             </KeyboardAvoidingView>
 
@@ -416,7 +413,7 @@ export default function CreateMatchScreen() {
                     onPress={() => setShowAgeGroupPicker(false)}
                 >
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Select Age Group</Text>
+                        <Text style={styles.modalTitle}>{t('create.selectAgeGroup')}</Text>
                         {ageGroups.map(ag => (
                             <TouchableOpacity
                                 key={ag}
@@ -444,7 +441,7 @@ export default function CreateMatchScreen() {
                     onPress={() => setShowFormatPicker(false)}
                 >
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Select Format</Text>
+                        <Text style={styles.modalTitle}>{t('create.selectFormat')}</Text>
                         <Text style={styles.tacticalSubtitle}>Choose your pitch size</Text>
                         <View style={styles.tacticalGrid}>
                             {formats.map(f => {
@@ -519,7 +516,7 @@ export default function CreateMatchScreen() {
                     onPress={() => setShowDurationPicker(false)}
                 >
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Select Duration</Text>
+                        <Text style={styles.modalTitle}>{t('create.selectDuration')}</Text>
                         {durations.map(d => (
                             <TouchableOpacity
                                 key={d}
@@ -530,7 +527,7 @@ export default function CreateMatchScreen() {
                                 }}
                             >
                                 <Text style={[styles.modalOptionText, duration === d && styles.modalOptionTextSelected]}>
-                                    {d} minutes
+                                    {d} {t('common.minutes')}
                                 </Text>
                                 {duration === d && <Ionicons name="checkmark" size={24} color={Colors[colorScheme].primary} />}
                             </TouchableOpacity>
@@ -544,7 +541,7 @@ export default function CreateMatchScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.dateTimeModalContent}>
                         <View style={styles.dateTimeModalHeader}>
-                            <Text style={styles.modalTitle}>Add Time Slot</Text>
+                            <Text style={styles.modalTitle}>{t('create.addTimeSlot')}</Text>
                             <TouchableOpacity onPress={() => setShowDateTimePicker(false)}>
                                 <Ionicons name="close" size={28} color={Colors[colorScheme].text} />
                             </TouchableOpacity>
@@ -553,7 +550,7 @@ export default function CreateMatchScreen() {
                         <ScrollView style={styles.dateTimeScrollView} showsVerticalScrollIndicator={false}>
                             {/* Preview Card */}
                             <Card style={styles.previewCard}>
-                                <Text style={styles.previewLabel}>Your Time Slot</Text>
+                                <Text style={styles.previewLabel}>{t('create.yourTimeSlot')}</Text>
                                 <Text style={styles.previewDate}>
                                     {tempDate.toLocaleDateString('en-GB', {
                                         weekday: 'long',
@@ -570,14 +567,14 @@ export default function CreateMatchScreen() {
                                 <View style={styles.previewDurationRow}>
                                     <Ionicons name="time-outline" size={16} color={Colors[colorScheme].textSecondary} />
                                     <Text style={styles.previewDuration}>
-                                        {duration} minutes
+                                        {duration} {t('common.minutes')}
                                     </Text>
                                 </View>
                             </Card>
 
                             {/* Date Picker */}
                             <View style={styles.dateTimeSection}>
-                                <Text style={styles.dateTimeLabel}>📅 Select Date</Text>
+                                <Text style={styles.dateTimeLabel}>📅 {t('create.selectDate')}</Text>
                                 {Platform.OS === 'web' ? (
                                     <TextInput
                                         style={styles.webDateInput}
@@ -605,9 +602,9 @@ export default function CreateMatchScreen() {
 
                             {/* Start Time Picker */}
                             <View style={styles.dateTimeSection}>
-                                <Text style={styles.dateTimeLabel}>🕐 Select Start Time</Text>
+                                <Text style={styles.dateTimeLabel}>🕐 {t('create.selectStartTime')}</Text>
                                 <Text style={styles.dateTimeHint}>
-                                    End time will be {duration} minutes after start time
+                                    {t('create.endTimeHint', { minutes: duration })}
                                 </Text>
                                 {Platform.OS === 'web' ? (
                                     <TextInput
@@ -655,13 +652,13 @@ export default function CreateMatchScreen() {
                                 style={[styles.modalButton, styles.modalButtonSecondary]}
                                 onPress={() => setShowDateTimePicker(false)}
                             >
-                                <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+                                <Text style={styles.modalButtonTextSecondary}>{t('common.cancel')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.modalButtonPrimary]}
                                 onPress={saveTimeSlot}
                             >
-                                <Text style={styles.modalButtonTextPrimary}>Add Slot</Text>
+                                <Text style={styles.modalButtonTextPrimary}>{t('create.addSlot')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

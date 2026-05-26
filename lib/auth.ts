@@ -61,6 +61,30 @@ export async function signOut() {
 }
 
 /**
+ * Send a password reset email
+ */
+export async function resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://matchslot.netlify.app',
+    });
+
+    if (error) {
+        throw error;
+    }
+}
+
+/**
+ * Update the user's password (used after reset flow)
+ */
+export async function updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+        throw error;
+    }
+}
+
+/**
  * Get the current session
  */
 export async function getSession(): Promise<Session | null> {

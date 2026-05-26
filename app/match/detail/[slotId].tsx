@@ -3,16 +3,20 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { addMatchToCalendar } from '@/lib/calendarUtils';
+import { scheduleMatchReminders } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { MatchOffer, Slot } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function SlotDetailScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const styles = getStyles(colorScheme);
+    const { t } = useTranslation();
     const { slotId } = useLocalSearchParams<{ slotId: string }>();
 
     const [slot, setSlot] = useState<Slot | null>(null);
@@ -58,7 +62,7 @@ export default function SlotDetailScreen() {
             setGoalScorers(slotData.goal_scorers ?? '');
         } catch (e: any) {
             console.error(e);
-            Alert.alert('Error', 'Failed to load slot details');
+            Alert.alert(t('common.error'), t('detail.failedLoad'));
             router.back();
         } finally {
             setLoading(false);
@@ -82,10 +86,10 @@ export default function SlotDetailScreen() {
                 .eq('id', slot.id);
 
             if (error) throw error;
-            Alert.alert('Saved', 'Match result saved successfully.');
+            Alert.alert(t('detail.saved'), t('detail.resultSaved'));
             router.back();
         } catch (e: any) {
-            Alert.alert('Error', 'Failed to save: ' + e.message);
+            Alert.alert(t('common.error'), t('detail.failedSave') + ': ' + e.message);
         } finally {
             setSaving(false);
         }
@@ -107,7 +111,26 @@ export default function SlotDetailScreen() {
     };
 
     const isMatchPast = slot ? new Date(slot.end_time) < new Date() : false;
+    const isUpcoming = slot ? new Date(slot.start_time) > new Date() : false;
     const canEdit = slot?.status === 'BOOKED';
+
+    // Auto-schedule local reminder when viewing an upcoming booked match (host side)
+    useEffect(() => {
+        if (slot?.status === 'BOOKED' && isUpcoming && offer) {
+            const title = `${offer.age_group} ${offer.format} — ${slot.guest_club || 'Opponent'} vs ${offer.host_club || offer.host_name}`;
+            scheduleMatchReminders(slot.id, slot.start_time, title, offer.location);
+        }
+    }, [slot?.id, slot?.status]);
+
+    const handleAddToCalendar = async () => {
+        if (!slot || !offer) return;
+        const title = `${offer.age_group} ${offer.format} — ${slot.guest_club || 'Opponent'} vs ${offer.host_club || offer.host_name}`;
+        const success = await addMatchToCalendar(
+            slot.start_time, slot.end_time, title, offer.location,
+            `Host: ${offer.host_name}\nGuest: ${slot.guest_name || 'TBD'}`
+        );
+        if (success) Alert.alert(t('detail.saved'), t('calendar.added'));
+    };
 
     if (loading) {
         return (
@@ -121,25 +144,25 @@ export default function SlotDetailScreen() {
         return (
             <View style={styles.center}>
                 <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
-                <Text style={styles.errorText}>Slot not found</Text>
+                <Text style={styles.errorText}>{t('detail.slotNotFound')}</Text>
             </View>
         );
     }
 
     const statusConfig: Record<string, { color: string; label: string; icon: string }> = {
-        OPEN: { color: Colors[colorScheme].success, label: 'Open for Booking', icon: 'radio-button-on' },
-        HELD: { color: '#FFA500', label: 'Held', icon: 'pause-circle' },
-        PENDING_APPROVAL: { color: Colors[colorScheme].warning, label: 'Pending Approval', icon: 'hourglass' },
-        BOOKED: { color: Colors[colorScheme].primary, label: 'Booked', icon: 'checkmark-circle' },
-        REJECTED: { color: Colors[colorScheme].error, label: 'No Longer Available', icon: 'close-circle' },
+        OPEN: { color: Colors[colorScheme].success, label: t('detail.openForBooking'), icon: 'radio-button-on' },
+        HELD: { color: '#FFA500', label: t('manage.held'), icon: 'pause-circle' },
+        PENDING_APPROVAL: { color: Colors[colorScheme].warning, label: t('offer.pendingApproval'), icon: 'hourglass' },
+        BOOKED: { color: Colors[colorScheme].primary, label: t('manage.booked'), icon: 'checkmark-circle' },
+        REJECTED: { color: Colors[colorScheme].error, label: t('offer.notAvailable'), icon: 'close-circle' },
     };
     const status = statusConfig[slot.status] || { color: Colors[colorScheme].textSecondary, label: slot.status, icon: 'ellipse' };
 
     return (
         <>
             <Stack.Screen options={{
-                title: 'Match Details',
-                headerBackTitle: 'Back',
+                title: t('detail.title'),
+                headerBackTitle: t('common.back'),
                 headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Colors[colorScheme].background },
@@ -154,7 +177,7 @@ export default function SlotDetailScreen() {
                     {/* Scoreboard Header */}
                     <View style={styles.scoreboard}>
                         <View style={styles.teamSide}>
-                            <Text style={styles.teamLabel}>HOST</Text>
+                            <Text style={styles.teamLabel}>{t('detail.host')}</Text>
                             <Text style={styles.teamName} numberOfLines={1}>
                                 {offer.host_club || offer.host_name}
                             </Text>
@@ -165,7 +188,7 @@ export default function SlotDetailScreen() {
                                     <Text style={styles.scoreDisplay}>
                                         {slot.home_score ?? 0}  -  {slot.away_score ?? 0}
                                     </Text>
-                                    <Text style={styles.scoreSubtext}>FULL TIME</Text>
+                                    <Text style={styles.scoreSubtext}>{t('detail.fullTime')}</Text>
                                 </>
                             ) : (
                                 <>
@@ -175,9 +198,9 @@ export default function SlotDetailScreen() {
                             )}
                         </View>
                         <View style={[styles.teamSide, { alignItems: 'flex-end' }]}>
-                            <Text style={styles.teamLabel}>GUEST</Text>
+                            <Text style={styles.teamLabel}>{t('detail.guest')}</Text>
                             <Text style={styles.teamName} numberOfLines={1}>
-                                {slot.guest_club || 'TBD'}
+                                {slot.guest_club || t('detail.tbd')}
                             </Text>
                         </View>
                     </View>
@@ -190,23 +213,33 @@ export default function SlotDetailScreen() {
 
                     {/* Match Info */}
                     <Card style={styles.infoCard}>
-                        <InfoRow icon="calendar-outline" label="Date & Time" value={formatDateTime(slot.start_time)} colorScheme={colorScheme} />
-                        <InfoRow icon="time-outline" label="Kick-off" value={`${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`} colorScheme={colorScheme} />
-                        <InfoRow icon="location-outline" label="Location" value={offer.location} colorScheme={colorScheme} />
-                        <InfoRow icon="football-outline" label="Format" value={`${offer.format} • ${offer.age_group}`} colorScheme={colorScheme} />
-                        <InfoRow icon="timer-outline" label="Duration" value={`${offer.duration} minutes`} colorScheme={colorScheme} last />
+                        <InfoRow icon="calendar-outline" label={t('detail.dateTime')} value={formatDateTime(slot.start_time)} colorScheme={colorScheme} />
+                        <InfoRow icon="time-outline" label={t('detail.kickoff')} value={`${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`} colorScheme={colorScheme} />
+                        <InfoRow icon="location-outline" label={t('detail.location')} value={offer.location} colorScheme={colorScheme} />
+                        <InfoRow icon="football-outline" label={t('detail.format')} value={`${offer.format} • ${offer.age_group}`} colorScheme={colorScheme} />
+                        <InfoRow icon="timer-outline" label={t('detail.duration')} value={`${offer.duration} ${t('common.minutes')}`} colorScheme={colorScheme} last />
                     </Card>
+
+                    {/* Add to Calendar */}
+                    {slot.status === 'BOOKED' && isUpcoming && (
+                        <Button
+                            title={t('calendar.addToCalendar')}
+                            onPress={handleAddToCalendar}
+                            variant="secondary"
+                            style={{ marginBottom: 4, marginTop: 8 }}
+                        />
+                    )}
 
                     {/* Guest Team Info */}
                     {slot.guest_name && (
                         <>
-                            <Text style={styles.sectionTitle}>Guest Team</Text>
+                            <Text style={styles.sectionTitle}>{t('detail.guestTeam')}</Text>
                             <Card style={styles.infoCard}>
-                                <InfoRow icon="person-outline" label="Coach" value={slot.guest_name} colorScheme={colorScheme} />
-                                <InfoRow icon="shield-outline" label="Club" value={slot.guest_club || '-'} colorScheme={colorScheme} />
-                                <InfoRow icon="call-outline" label="Contact" value={slot.guest_contact || '-'} colorScheme={colorScheme} />
+                                <InfoRow icon="person-outline" label={t('detail.coach')} value={slot.guest_name} colorScheme={colorScheme} />
+                                <InfoRow icon="shield-outline" label={t('detail.club')} value={slot.guest_club || '-'} colorScheme={colorScheme} />
+                                <InfoRow icon="call-outline" label={t('detail.contact')} value={slot.guest_contact || '-'} colorScheme={colorScheme} />
                                 {slot.guest_notes && (
-                                    <InfoRow icon="document-text-outline" label="Notes" value={slot.guest_notes} colorScheme={colorScheme} last />
+                                    <InfoRow icon="document-text-outline" label={t('detail.notes')} value={slot.guest_notes} colorScheme={colorScheme} last />
                                 )}
                                 {!slot.guest_notes && <View />}
                             </Card>
@@ -217,14 +250,14 @@ export default function SlotDetailScreen() {
                     {canEdit && (
                         <>
                             <Text style={styles.sectionTitle}>
-                                {slot.result_saved_at ? 'Edit Result' : isMatchPast ? 'Add Match Result' : 'Match Result'}
+                                {slot.result_saved_at ? t('detail.editResult') : isMatchPast ? t('detail.addResult') : t('detail.matchResult')}
                             </Text>
 
                             {!isMatchPast && !slot.result_saved_at && (
                                 <View style={styles.infoBanner}>
                                     <Ionicons name="information-circle-outline" size={20} color={Colors[colorScheme].warning} />
                                     <Text style={styles.infoBannerText}>
-                                        Match hasn't started yet. You can add the result after the game.
+                                        {t('detail.notStarted')}
                                     </Text>
                                 </View>
                             )}
@@ -233,7 +266,7 @@ export default function SlotDetailScreen() {
                                 {/* Score Inputs */}
                                 <View style={styles.scoreRow}>
                                     <View style={styles.scoreInput}>
-                                        <Text style={styles.scoreLabel}>Home</Text>
+                                        <Text style={styles.scoreLabel}>{t('common.home')}</Text>
                                         <TextInput
                                             style={styles.scoreField}
                                             value={homeScore}
@@ -246,7 +279,7 @@ export default function SlotDetailScreen() {
                                     </View>
                                     <Text style={styles.scoreSeparator}>-</Text>
                                     <View style={styles.scoreInput}>
-                                        <Text style={styles.scoreLabel}>Away</Text>
+                                        <Text style={styles.scoreLabel}>{t('common.away')}</Text>
                                         <TextInput
                                             style={styles.scoreField}
                                             value={awayScore}
@@ -261,16 +294,16 @@ export default function SlotDetailScreen() {
 
                                 {/* Extra Result Fields */}
                                 <Input
-                                    label="Man of the Match"
-                                    placeholder="Player name"
+                                    label={t('detail.manOfMatch')}
+                                    placeholder={t('detail.playerName')}
                                     value={manOfMatch}
                                     onChangeText={setManOfMatch}
                                     icon="trophy-outline"
                                 />
 
                                 <Input
-                                    label="Goal Scorers"
-                                    placeholder="e.g. Smith (2), Jones"
+                                    label={t('detail.goalScorers')}
+                                    placeholder={t('detail.goalScorersPlaceholder')}
                                     value={goalScorers}
                                     onChangeText={setGoalScorers}
                                     icon="football-outline"
@@ -279,12 +312,12 @@ export default function SlotDetailScreen() {
                                 />
 
                                 <View style={styles.notesWrapper}>
-                                    <Text style={styles.notesLabel}>Match Notes</Text>
+                                    <Text style={styles.notesLabel}>{t('detail.matchNotes')}</Text>
                                     <TextInput
                                         style={styles.notesInput}
                                         value={resultNotes}
                                         onChangeText={setResultNotes}
-                                        placeholder="How did the game go? (optional)"
+                                        placeholder={t('detail.matchNotesPlaceholder')}
                                         placeholderTextColor={Colors[colorScheme].textTertiary}
                                         multiline
                                         numberOfLines={3}
@@ -292,14 +325,14 @@ export default function SlotDetailScreen() {
                                 </View>
 
                                 <Button
-                                    title="Save Result"
+                                    title={t('detail.saveResult')}
                                     onPress={handleSave}
                                     loading={saving}
                                 />
 
                                 {slot.result_saved_at && (
                                     <Text style={styles.lastSaved}>
-                                        Last saved: {new Date(slot.result_saved_at).toLocaleDateString('en-GB', {
+                                        {t('detail.lastSaved')}: {new Date(slot.result_saved_at).toLocaleDateString('en-GB', {
                                             day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                                         })}
                                     </Text>
@@ -312,15 +345,15 @@ export default function SlotDetailScreen() {
                     {slot.status === 'OPEN' && (
                         <Card style={styles.messageCard}>
                             <Ionicons name="hourglass-outline" size={32} color={Colors[colorScheme].primary} />
-                            <Text style={styles.messageTitle}>Awaiting Booking</Text>
-                            <Text style={styles.messageSubtext}>Share your match link so other coaches can book this slot.</Text>
+                            <Text style={styles.messageTitle}>{t('detail.awaitingBooking')}</Text>
+                            <Text style={styles.messageSubtext}>{t('detail.awaitingBookingDesc')}</Text>
                         </Card>
                     )}
                     {slot.status === 'REJECTED' && (
                         <Card style={styles.messageCard}>
                             <Ionicons name="close-circle-outline" size={32} color={Colors[colorScheme].error} />
-                            <Text style={styles.messageTitle}>Slot Rejected</Text>
-                            <Text style={styles.messageSubtext}>This time slot was rejected and is no longer available.</Text>
+                            <Text style={styles.messageTitle}>{t('detail.slotRejected')}</Text>
+                            <Text style={styles.messageSubtext}>{t('detail.slotRejectedDesc')}</Text>
                         </Card>
                     )}
                 </ScrollView>
