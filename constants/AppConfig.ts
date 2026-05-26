@@ -49,15 +49,6 @@ export const APPROVAL_STATUSES = {
   REJECTED: 'REJECTED',
 } as const;
 
-// Status colors for UI
-export const STATUS_COLORS = {
-  OPEN: '#4CAF50',      // Green
-  HELD: '#FFA500',      // Orange
-  PENDING_APPROVAL: '#FFD700', // Gold
-  BOOKED: '#2196F3',    // Blue
-  REJECTED: '#F44336',  // Red
-} as const;
-
 // Default time for new slots (10:00 AM)
 export const DEFAULT_SLOT_START_HOUR = 10;
 export const DEFAULT_SLOT_START_MINUTE = 0;

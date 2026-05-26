@@ -12,7 +12,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.tabIconDefault,
+        tabBarInactiveTintColor: theme.textTertiary,
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
@@ -22,17 +22,30 @@ export default function TabLayout() {
           borderTopColor: theme.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
+          marginHorizontal: 18,
+          borderRadius: 24,
+          paddingTop: 8,
+          paddingBottom: 8,
         },
         tabBarBackground: () => (
           <View style={[StyleSheet.absoluteFill, {
             backgroundColor: colorScheme === 'dark'
               ? 'rgba(10,31,18,0.95)'
               : 'rgba(255,255,255,0.95)',
+            borderRadius: 24,
+            shadowColor: colorScheme === 'dark' ? '#000' : 'rgba(26,46,26,0.12)',
+            shadowOffset: { width: 0, height: 12 },
+            shadowOpacity: 1,
+            shadowRadius: 36,
+            elevation: 8,
           }]} />
         ),
         tabBarLabelStyle: {
           fontWeight: '500',
-          fontSize: 12,
+          fontSize: 10.5,
+        },
+        tabBarItemStyle: {
+          borderRadius: 16,
         },
       }}>
       <Tabs.Screen
@@ -40,7 +53,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -48,9 +61,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="manage"
         options={{
-          title: 'My Matches',
+          title: 'Matches',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'football' : 'football-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'football' : 'football-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -60,7 +73,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
           ),
         }}
       />

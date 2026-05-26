@@ -12,88 +12,97 @@ const chalk = '#F5F5EC';        // Chalk white / off-white
 export const Colors = {
   light: {
     // Backgrounds
-    text: '#1A2E1A',              // Deep forest
-    background: '#F7FAF5',        // Lightest green-tinted white
-    backgroundAlt: '#FFFFFF',     // Pure white for elevated surfaces
+    text: '#1A2E1A',
+    background: '#F7FAF5',
+    backgroundAlt: '#FFFFFF',
     tint: pitch,
-    icon: '#5C7A5C',              // Muted green-grey
-    tabIconDefault: '#94A894',    // Faded sage
+    icon: '#5C7A5C',
+    tabIconDefault: '#94A894',
     tabIconSelected: pitch,
 
     // Brand
     primary: pitch,
     primaryDark: pitchDark,
-    primaryLight: '#E8F5E9',      // Very light green wash
-    secondary: 'rgba(27,139,78,0.08)',    // Translucent green
-    accent: pitchLight,                    // Bright green
+    primaryLight: '#E8F5E9',
+    secondary: 'rgba(27,139,78,0.08)',
+    accent: pitchLight,
 
     // Surfaces
     card: '#FFFFFF',
-    cardBorder: '#D4E4D4',        // Light green border
+    cardBorder: '#D4E4D4',
     cardElevated: '#FFFFFF',
+    inputBg: '#FFFFFF',
 
     // Text
-    textSecondary: '#4A6B4A',     // Medium forest
-    textTertiary: '#8FA88F',      // Light sage
+    textSecondary: '#4A6B4A',
+    textTertiary: '#8FA88F',
 
     // Borders & Dividers
-    border: '#D4E4D4',            // Soft green
+    border: '#D4E4D4',
+    divider: 'rgba(27,139,78,0.10)',
 
     // Status
     success: '#16A34A',
     warning: '#F59E0B',
     error: '#EF4444',
+    info: '#2563EB',
 
     // Glow / Shadows
-    glow: 'rgba(27, 139, 78, 0.15)',
-    shadow: 'rgba(26, 46, 26, 0.08)',
+    glow: 'rgba(27, 139, 78, 0.30)',
+    shadow: 'rgba(26, 46, 26, 0.10)',
 
     // Pitch-specific
-    pitchLine: 'rgba(27, 139, 78, 0.12)',   // Subtle pitch line dividers
-    scoreboardBg: '#1A2E1A',                  // Dark scoreboard background
-    scoreboardText: '#FFFFFF',                 // Scoreboard white text
+    pitchLine: 'rgba(27, 139, 78, 0.12)',
+    scoreboardBg: '#0F2818',
+    scoreboardSurface: '#163524',
+    scoreboardText: '#FFFFFF',
+    scoreboardMuted: 'rgba(255,255,255,0.55)',
   },
   dark: {
-    // Backgrounds — "Night match" feel
-    text: '#E8F5E9',              // Light green-white
-    background: '#0A1F12',        // Deep pitch at night
-    backgroundAlt: '#122A1A',     // Slightly lighter green-black
+    text: '#E8F5E9',
+    background: '#0A1F12',
+    backgroundAlt: '#122A1A',
     tint: pitchLight,
-    icon: '#8FA88F',              // Sage
-    tabIconDefault: '#5C7A5C',    // Muted green
+    icon: '#8FA88F',
+    tabIconDefault: '#5C7A5C',
     tabIconSelected: pitchLight,
 
     // Brand
     primary: pitchLight,
     primaryDark: pitch,
-    primaryLight: 'rgba(74,222,128,0.1)',
+    primaryLight: 'rgba(74,222,128,0.10)',
     secondary: 'rgba(74,222,128,0.12)',
-    accent: '#86EFAC',            // Lighter green
+    accent: '#86EFAC',
 
     // Surfaces
-    card: '#122A1A',              // Dark green surface
-    cardBorder: '#1E3D28',        // Green-tinted border
+    card: '#122A1A',
+    cardBorder: '#1E3D28',
     cardElevated: '#1E3D28',
+    inputBg: '#0E2415',
 
     // Text
-    textSecondary: '#8FA88F',     // Sage
-    textTertiary: '#5C7A5C',      // Muted green
+    textSecondary: '#8FA88F',
+    textTertiary: '#5C7A5C',
 
     // Borders & Dividers
-    border: '#1E3D28',            // Dark green border
+    border: '#1E3D28',
+    divider: 'rgba(74,222,128,0.10)',
 
     // Status
     success: '#4ADE80',
     warning: '#FBBF24',
     error: '#F87171',
+    info: '#60A5FA',
 
     // Glow / Shadows
-    glow: 'rgba(74, 222, 128, 0.2)',
-    shadow: 'rgba(0, 0, 0, 0.5)',
+    glow: 'rgba(74, 222, 128, 0.30)',
+    shadow: 'rgba(0, 0, 0, 0.55)',
 
     // Pitch-specific
     pitchLine: 'rgba(74, 222, 128, 0.08)',
-    scoreboardBg: '#0A1F12',
+    scoreboardBg: '#06140C',
+    scoreboardSurface: '#0E2415',
     scoreboardText: '#E8F5E9',
+    scoreboardMuted: 'rgba(232,245,233,0.55)',
   },
 };

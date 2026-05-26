@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { ToastProvider } from '@/components/ui/Toast';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
@@ -94,7 +95,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <ToastProvider>
+        <RootLayoutNav />
+      </ToastProvider>
     </AuthProvider>
   );
 }

@@ -1,32 +1,40 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, Pressable, PressableProps, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
 
 interface ButtonProps extends PressableProps {
     title: string;
-    variant?: 'primary' | 'secondary' | 'outline';
+    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
     loading?: boolean;
+    icon?: keyof typeof Ionicons.glyphMap;
     style?: any;
 }
 
-export function Button({ title, variant = 'primary', loading, style, disabled, ...props }: ButtonProps) {
+export function Button({ title, variant = 'primary', loading, icon, style, disabled, ...props }: ButtonProps) {
     const colorScheme = useColorScheme() ?? 'light';
-    const styles = getStyles(colorScheme);
+    const t = Colors[colorScheme];
 
     const getTextColor = () => {
-        if (disabled) return Colors[colorScheme].textTertiary;
-        if (variant === 'primary') return '#fff';
-        if (variant === 'secondary') return Colors[colorScheme].primary;
-        return Colors[colorScheme].text;
+        if (disabled) return t.textTertiary;
+        if (variant === 'primary') return colorScheme === 'dark' ? '#06140C' : '#FFFFFF';
+        if (variant === 'secondary') return t.primary;
+        if (variant === 'ghost') return t.primary;
+        if (variant === 'danger') return t.error;
+        return t.text;
     };
 
     const getBackgroundColor = (pressed: boolean) => {
-        if (disabled) return Colors[colorScheme].border;
-        if (variant === 'primary') return pressed ? '#157A42' : '#1B8B4E';
-        if (variant === 'secondary') return pressed ? Colors[colorScheme].cardBorder : Colors[colorScheme].secondary;
+        if (disabled) return t.border;
+        if (variant === 'primary') return pressed ? t.primaryDark : t.primary;
+        if (variant === 'secondary') return pressed ? t.cardBorder : t.secondary;
+        if (variant === 'ghost') return t.secondary;
+        if (variant === 'danger') return 'transparent';
         return 'transparent';
     };
+
+    const textColor = getTextColor();
 
     return (
         <Pressable
@@ -34,15 +42,19 @@ export function Button({ title, variant = 'primary', loading, style, disabled, .
                 styles.container,
                 { backgroundColor: getBackgroundColor(pressed) },
                 variant === 'primary' && !disabled && {
-                    shadowColor: '#1B8B4E',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 10,
+                    shadowColor: t.primary,
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 18,
                     elevation: 6,
                 },
                 variant === 'outline' && {
                     borderWidth: 1,
-                    borderColor: Colors[colorScheme].border,
+                    borderColor: t.cardBorder,
+                },
+                variant === 'danger' && {
+                    borderWidth: 1,
+                    borderColor: t.error + '55',
                 },
                 style,
             ]}
@@ -50,26 +62,34 @@ export function Button({ title, variant = 'primary', loading, style, disabled, .
             {...props}
         >
             {loading ? (
-                <ActivityIndicator color={getTextColor()} />
+                <ActivityIndicator color={textColor} />
             ) : (
-                <Text style={[styles.text, { color: getTextColor() }]}>{title}</Text>
+                <View style={styles.content}>
+                    {icon && <Ionicons name={icon} size={18} color={textColor} />}
+                    <Text style={[styles.text, { color: textColor }]}>{title}</Text>
+                </View>
             )}
         </Pressable>
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         height: 52,
-        borderRadius: 16,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
-        paddingHorizontal: 28,
+        paddingHorizontal: 20,
+    },
+    content: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
     },
     text: {
         fontSize: 16,
         fontWeight: '600',
-        letterSpacing: 0.5,
+        letterSpacing: 0.2,
     },
 });
