@@ -34,26 +34,30 @@ Sign Up/Login
 
 ### 2.2 Guest Coach (Public, No Auth)
 
-Receives a shared link. Books a slot for their team.
+Receives a shared link. Books a slot for their team. **Booking is immediate — there is no guest-side approval step.**
 
 ```
 Open shared link → /offer/{token}
   → View match details + available time slots
   → Select a slot → /offer/book/{slotId}
     → Enter team details (name, club, contact, notes)
-    → Enter their approver's email
-    → Submit → slot moves to PENDING_APPROVAL
+    → Submit → slot becomes BOOKED immediately
+              → all other OPEN/HELD slots → REJECTED
+              → offer → CLOSED
+              → confirmation screen ("Match Confirmed!")
 ```
 
-### 2.3 Approver (Public, No Auth)
+### 2.3 Approver (Public, No Auth) — Host-side pre-approval
 
-Receives an email with a one-tap approval link. Can be on either side (host's approver pre-approves the offer; guest's approver confirms the booking).
+The approval flow is a **host-side pre-approval of the offer's time slots**, NOT a booking confirmation. When the host creates an offer, its slots start as `PENDING_APPROVAL`. The host's nominated approver receives an email link to approve/reject the slots before the offer goes live (`OPEN`).
 
 ```
 Open approval link → /approve/{token}
-  → Review match + team details
-  → Approve (locks slot as BOOKED, rejects other slots)
-  → OR Reject (releases slot back to OPEN)
+  → Review match + each time slot
+  → Approve individual slots (slot → OPEN) or Approve All
+    → offer → OPEN, share link copied
+  → OR Reject individual slots (slot → REJECTED)
+    → if all rejected, offer → CANCELLED
 ```
 
 ### 2.4 Status Flow Diagram
@@ -62,27 +66,24 @@ Open approval link → /approve/{token}
 [Host Creates Offer]
        │
        ▼
-  PENDING_APPROVAL  ──(Host's approver rejects)──→  CANCELLED
+  PENDING_APPROVAL ──(approver rejects all slots)──→  CANCELLED
        │
-  (Host's approver approves)
-       │
-       ▼
-     OPEN  ←──────────────────────────────────┐
-       │                                       │
-  (Guest selects slot)                    (Guest's approver
-       │                                   rejects)
-       ▼                                       │
-     HELD (15-min timeout)                     │
-       │                                       │
-  (Guest submits booking)                      │
-       │                                       │
-       ▼                                       │
-  PENDING_APPROVAL ────────────────────────────┘
-       │
-  (Guest's approver approves)
+  (host's approver approves slots)
        │
        ▼
-    BOOKED ───→ (Match played) ───→ RESULT SAVED
+     OPEN
+       │
+  (guest selects slot → optional HELD, 15-min)
+       │
+  (guest submits booking — immediate, no approval)
+       │
+       ▼
+    BOOKED  ── (sibling slots → REJECTED, offer → CLOSED)
+       │
+  (match played → host records result)
+       │
+       ▼
+  RESULT SAVED
 ```
 
 ---
@@ -228,15 +229,17 @@ Same layout as login with added "Full Name" field. CTA: "Create Account". Footer
 ### 4.4 Tab Layout (`app/(tabs)/_layout.tsx`)
 
 **Bottom tabs (3):**
-| Tab     | Icon (inactive)        | Icon (active)    | Label     |
+| Tab     | Icon (inactive)        | Icon (active)    | Title     |
 |---------|------------------------|------------------|-----------|
-| Home    | `football-outline`     | `football`       | Home      |
-| Manage  | `list-outline`         | `list`           | My Matches|
+| Home    | `home-outline`         | `home`           | Home      |
+| Manage  | `football-outline`     | `football`       | My Matches|
 | Profile | `person-outline`       | `person`         | Profile   |
 
 - Active color: `Colors.primary`
 - Inactive color: `Colors.tabIconDefault`
-- Tab bar background: `Colors.card`
+- Icon size: 24px, label fontWeight 500 / fontSize 12
+- **Tab bar is `position: absolute`** (floats over content) with a semi-transparent background — dark: `rgba(10,31,18,0.95)`, light: `rgba(255,255,255,0.95)`. Top border is `StyleSheet.hairlineWidth` in `Colors.border`, elevation 0.
+- Because the bar floats, scrollable screens add `paddingBottom: 100` and FABs sit at `bottom: 90`.
 - Header hidden on all tabs (each screen handles its own header)
 
 ### 4.5 Home Screen (`app/(tabs)/index.tsx`)
@@ -451,59 +454,56 @@ SafeAreaView
 ├── ScrollView
 │   ├── Header: "Book This Slot" + slot time summary
 │   │
+│   ├── Summary Card (bg secondary, primary border): selected slot + match details
 │   ├── Form Card
-│   │   ├── Input: "Your Name" (required)
-│   │   ├── Input: "Club Name" (required)
-│   │   ├── Input: "Contact Email" (required, validated)
-│   │   ├── Input: "Notes for the host" (optional, multiline)
-│   │   └── Input: "Approver Email" (required, validated)
-│   │
-│   └── Submit Button: "Confirm Booking"
+│   │   ├── Input: "Your Name *" (icon person-outline)
+│   │   ├── Input: "Your Club Name *" (icon shield-outline)
+│   │   ├── Input: "Contact (Email or Phone) *" (icon call-outline)
+│   │   └── Input: "Additional Notes (optional)" (icon document-text-outline, multiline)
+│   ├── Info banner: "Your match will be confirmed immediately..."
+│   └── Submit Button: "Confirm Match" (footer, absolute bottom)
 │       Loading state with ActivityIndicator
 ```
+(No approver email field — guest booking does not route through approval.)
 
-**On submit:** Marks slot as PENDING_APPROVAL, stores guest data, creates approval record, creates notifications.
+**On submit:** Re-checks slot availability, books the slot as **BOOKED immediately** (no approval gate), rejects all other OPEN/HELD slots in the offer, closes the offer (CLOSED), sends email via MailComposer, creates a notification. Note: there is NO approver email field on this form — guest booking is direct.
 
-**Success state:** Shows confirmation screen with checkmark animation + "Slot booked! Approval email sent."
+**Success state:** Full-screen confirmation — `checkmark-circle` (80px, success) + "Match Confirmed!" + match summary card (date/time, location, host) + "Done" button → `/`.
 
 ### 4.12 Approval Screen (`app/approve/[token].tsx`)
 
-**Public screen. Approver makes their decision.**
+**Public screen. Host's approver reviews and approves/rejects time slots — per-slot, not a single decision.**
 
 **Layout:**
 ```
 SafeAreaView
 ├── ScrollView
-│   ├── Header: Shield icon + "Approval Request"
+│   ├── Header Card (bg secondary, primary border, centered)
+│   │   ├── shield-checkmark icon (40px, primary)
+│   │   ├── "Match Slot Approval"
+│   │   └── "Review and approve or reject each time slot individually..."
 │   │
-│   ├── Match Details Card
-│   │   ├── Age Group + Format
-│   │   ├── Location
-│   │   ├── Duration
-│   │   └── Date/Time of slot
+│   ├── Status Summary (3 count badges in a row)
+│   │   ├── Pending (primary)  ├── Approved (success)  └── Rejected (error)
 │   │
-│   ├── Team Details Card
-│   │   ├── Guest name
-│   │   ├── Guest club
-│   │   ├── Guest contact
-│   │   └── Guest notes
+│   ├── Host Coach Card: name (+ club)
 │   │
-│   ├── Host Info Card
-│   │   ├── Host name
-│   │   └── Host club
+│   ├── Match Details Card: match type, location, duration
 │   │
-│   ├── Decision Notes Input (optional for approve, required for reject)
-│   │
-│   └── Action Buttons (row)
-│       ├── "Approve" (green/success button)
-│       └── "Deny" (red/error button)
+│   └── Time Slots — one card per slot (2px border tinted by state)
+│       ├── status icon + slot datetime + status label
+│       └── If PENDING: [Deny] (error) + [Approve] (success) buttons
+│
+└── Footer (if any pending): [Reject All] + [Approve All]
 
-Post-decision states:
-├── Approved: green checkmark + "Approved!" + confirmation message
-└── Rejected: red X + "Rejected" + slot released message
-└── Already decided: shows existing decision, buttons disabled
-└── Expired: "This approval link has expired"
+Decision actions:
+├── Approve slot → slot OPEN; offer → OPEN if it was PENDING_APPROVAL
+├── Reject slot → slot REJECTED; if all rejected → offer CANCELLED
+├── Approve All → approval APPROVED, offer OPEN, share link copied
+└── Reject All → approval REJECTED, offer CANCELLED
 ```
+
+Uses its own custom `ConfirmModal` / `AlertModal` (NOT the shared `CrossPlatformAlert`, which is unused).
 
 ---
 
@@ -512,29 +512,28 @@ Post-decision states:
 ### 5.1 Button (`components/ui/Button.tsx`)
 
 ```typescript
-Props {
+Props extends PressableProps {
   title: string
-  onPress: () => void
   variant?: 'primary' | 'secondary' | 'outline'  // default: 'primary'
   loading?: boolean
-  disabled?: boolean
-  style?: ViewStyle
-  textStyle?: TextStyle
-  backgroundColor?: string  // custom override
+  style?: any
+  // onPress, disabled, etc. via PressableProps
 }
 ```
 
-**Dimensions:** Height 52-54px, borderRadius 16px, full width by default.
+**Dimensions:** Height 52px, borderRadius 16px, paddingHorizontal 28px, centered row. Text: fontSize 16, fontWeight 600, letterSpacing 0.5.
 
-**Variants:**
-- `primary`: Green bg (`Colors.primary`), white text, green shadow
-- `secondary`: Transparent bg, primary-colored text, subtle border
-- `outline`: Transparent bg, border `Colors.border`, text color
+**Variant colors:**
+| Variant   | Normal BG          | Pressed BG          | Text Color       |
+|-----------|--------------------|---------------------|------------------|
+| primary   | `#1B8B4E`          | `#157A42`           | `#fff`           |
+| secondary | `Colors.secondary` | `Colors.cardBorder` | `Colors.primary` |
+| outline   | transparent        | transparent         | `Colors.text`    |
 
-**States:**
-- Loading: `ActivityIndicator` replaces text
-- Disabled: 50% opacity
-- Pressed: `primaryDark` background
+- `primary` shadow: color `#1B8B4E`, offset {0,4}, opacity 0.35, radius 10, elevation 6
+- `outline` adds 1px `Colors.border`
+- **Disabled:** bg `Colors.border`, text `Colors.textTertiary`
+- **Loading:** `ActivityIndicator` replaces text, button disabled
 
 ### 5.2 Card (`components/ui/Card.tsx`)
 
@@ -545,38 +544,41 @@ Props {
 }
 ```
 
-**Styles:** `Colors.card` background, `Colors.cardBorder` 1px border, borderRadius 16, padding 16, shadow (offset 0/2, opacity 0.08, radius 8).
+**Styles:** `Colors.card` background, borderRadius **20**, padding 16, marginBottom 16. Shadow: light = `rgba(27,139,78,0.08)`, dark = `#000` at opacity 0.2; offset {0,2}, radius 16, elevation 4. (Note: no explicit border — relies on shadow for separation.)
 
 ### 5.3 Input (`components/ui/Input.tsx`)
 
 ```typescript
-Props {
+Props extends TextInputProps {
   label?: string
-  placeholder?: string
-  value: string
-  onChangeText: (text: string) => void
-  leftIcon?: string           // Ionicons name
-  rightElement?: ReactNode
-  secureTextEntry?: boolean
-  multiline?: boolean
-  keyboardType?: KeyboardTypeOptions
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
-  autoFocus?: boolean
-  editable?: boolean
-  error?: string
+  icon?: keyof typeof Ionicons.glyphMap   // left icon
+  rightElement?: React.ReactNode
+  // value, onChangeText, placeholder, secureTextEntry, multiline,
+  // keyboardType, autoCapitalize, autoFocus, editable via TextInputProps
 }
 ```
 
-**Styles:** 
-- Container: marginBottom 16
-- Label: 14px, fontWeight 500, marginBottom 6, `Colors.text`
-- Input box: `Colors.card` bg, 1px border `Colors.cardBorder`, borderRadius 14, padding 14, height 52 (single line) / minHeight 100 (multiline)
-- Left icon: 20px, `Colors.textTertiary`, marginRight 10
-- Error: `Colors.error`, 12px, marginTop 4
+**Styles:**
+- Wrapper: marginBottom 16
+- Label: fontSize 13, fontWeight 500, marginBottom 8, letterSpacing 0.3, color `Colors.textSecondary`
+- Container: row layout, 1px border `Colors.border`, borderRadius **16**, paddingHorizontal 16, paddingVertical 10, minHeight 52, bg `Colors.card`. The **entire row is a Pressable** that focuses the field on tap.
+- Left icon: 22px, `Colors.textSecondary`, marginRight 12
+- Input text: fontSize 16, flex 1, minHeight 36, color `Colors.text`; placeholder color `Colors.textTertiary`
+- No built-in `error` prop — screens render their own error containers above the input.
 
 ### 5.4 AnimatedPressable (`components/ui/AnimatedPressable.tsx`)
 
-Wraps `Pressable` with `react-native-reanimated` spring scale animation. Scales to 0.97 on press-in, springs back to 1.0 on release.
+Wraps `Pressable` with `react-native-reanimated` spring animation.
+
+```typescript
+Props extends PressableProps {
+  scaleTo?: number      // default 0.96
+  opacityTo?: number    // default 0.85
+  style?: StyleProp<ViewStyle>
+}
+```
+
+Press-in: spring scale to `scaleTo` (mass 0.6, damping 18, stiffness 250) + opacity to `opacityTo` over 150ms. Press-out: springs back to scale 1 / opacity 1.
 
 ### 5.5 AppBanner (`components/ui/AppBanner.tsx`)
 
@@ -753,17 +755,40 @@ Base URL:       https://matchslot.app
 
 ## 10. Known UI Issues & Improvement Opportunities
 
-### 10.1 Inconsistencies
+### 10.1 Verified Inconsistencies (from full source audit)
 
-1. **Status colors mismatch:** `AppConfig.ts` defines status colors (e.g., OPEN = `#4CAF50`) that differ from the design system's `Colors.success` (`#16A34A`). Should be unified.
+1. **Status colors mismatch / dead code:** `AppConfig.STATUS_COLORS` (e.g., OPEN = `#4CAF50`) is **never imported anywhere** — the `Colors` theme system supplies all status colors. Remove or consolidate.
 
-2. **Hardcoded colors:** Several screens use inline hex values instead of the `Colors` token system (e.g., `'#1B8B4E'` appears as a raw string in profile hero, avatar, shadows). These should use `Colors[colorScheme].primary`.
+2. **BASE_URL mismatch:** `AppConfig.ts` defines `https://matchslot.app`, but `shareLink.ts` actually builds links with `https://matchslot.netlify.app`. Share + approval links use the Netlify domain.
 
-3. **Dark mode profile:** The profile hero card uses `'#fff'` for the name in dark mode and `'rgba(255,255,255,0.6)'` for email instead of using theme tokens.
+3. **AGE_GROUPS divergence:** `AppConfig.AGE_GROUPS` lists 7 values (no Seniors/1st Team/Reserve), while `types/database.ts` and the create screen's local array list 10. The create screen uses its own array, so AppConfig's is partly unused.
 
-4. **Date formatting inconsistency:** Some screens use `toLocaleDateString('en-GB')`, others use different formats. No centralized date formatting utility is consistently used.
+4. **Login vs Register drift:** Login title is fontSize 36 / header marginBottom 40; Register title is fontSize 32 / marginBottom 36. Should match.
 
-5. **Web date picker:** The web fallback for date/time picking is a raw text input expecting "YYYY-MM-DD HH:MM" format — poor UX.
+5. **Hardcoded colors:** Scoreboard headers, profile hero, and avatars use raw hex (`#1B8B4E`, `#1A2E1A`, `#0A1F12`, `#4ADE80`, `rgba(255,255,255,0.5)`) instead of `Colors` tokens — they happen to match token values but bypass the theme system.
+
+6. **AppBanner uses a different palette entirely:** The web smart banner uses warm-neutral stone colors (`#1C1917`, `#FAFAF9`, `#A8A29E`, `#44403C`, `#78716C`) — completely off the green pitch system. Visually inconsistent with the rest of the app.
+
+7. **Splash vs background:** app.json splash background is `#FAFAF9` (warm white) but `Colors.light.background` is `#F7FAF5` (green-tinted) — slight color flash on load.
+
+8. **Dark-mode profile:** Hero card hardcodes `#fff` / `rgba(255,255,255,0.6)` for name/email rather than theme tokens.
+
+9. **Storage not platform-safe:** `lib/storage.ts` uses `AsyncStorage` directly, while `lib/supabase.ts` has a platform-safe wrapper — storage will break on web/SSR.
+
+10. **Date formatting:** Locked to `toLocaleDateString('en-GB')` in places, with no shared date utility used consistently.
+
+11. **Web date picker UX:** The web fallback for date/time is a raw text input expecting `YYYY-MM-DD` / `HH:MM` — poor UX.
+
+### 10.1b Dead Code to Clean Up
+
+- `components/ui/CrossPlatformAlert.tsx` — defined, never imported (approval screen rolls its own modals).
+- `components/ui/CircularProgress.tsx` — defined, never imported.
+- `AppConfig.STATUS_COLORS` — never imported.
+- `selectedSlotId` state in `offer/[token].tsx` — set once, never read.
+- `Stack.Screen name="modal"` in root layout — references a route file that doesn't exist (Expo template leftover).
+- `console.log` artifacts in `supabase.ts` (config dump) and `AuthContext.tsx` (auth state).
+- Bundled `SpaceMono-Regular.ttf` font is loaded but not used in any text style.
+- `AppBanner` App Store URL is a placeholder: `id000000000`.
 
 ### 10.2 Missing Features (UI-Impactful)
 
@@ -796,6 +821,8 @@ Base URL:       https://matchslot.app
 5. **Guest can't see which device/browser held a slot:** The hold mechanism is session-based but there's no UI for the guest to know their session is holding.
 
 6. **Tab bar on public screens:** The tab bar is correctly hidden on public routes, but the navigation header handling varies — some public screens show a back button, others don't.
+
+7. **N+1 query on Manage:** The manage screen fetches each offer and its slots in separate queries (Promise.all loop), unlike the home screen which batches with `.in(...)`. With many offers this means slower loads / more spinner time.
 
 ### 10.4 Accessibility Gaps
 
