@@ -1,19 +1,20 @@
-import { AppBanner } from '@/components/ui/AppBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Wordmark } from '@/components/ui/Brandmark';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { addMatchToCalendar } from '@/lib/calendarUtils';
 import { scheduleMatchReminders, sendPushToUser } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { MatchOffer, Slot } from '@/types/database';
-import { Ionicons } from '@expo/vector-icons';
 import * as MailComposer from 'expo-mail-composer';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, ArrowRight, CalendarClock, Check, MapPin, ShieldCheck } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 /**
  * Guest Coach Booking Form - US-GC-03
@@ -21,6 +22,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, S
  */
 export default function BookSlotScreen() {
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const styles = getStyles(colorScheme);
     const { t } = useTranslation();
     const { slotId, token } = useLocalSearchParams<{ slotId: string; token: string }>();
@@ -211,7 +213,7 @@ export default function BookSlotScreen() {
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
+                <ActivityIndicator size="large" color={c.primary} />
             </View>
         );
     }
@@ -228,55 +230,51 @@ export default function BookSlotScreen() {
     if (bookingConfirmed) {
         return (
             <>
-                <Stack.Screen options={{
-                    title: t('book.confirmed'),
-                    headerTitleStyle: { fontWeight: '700', fontSize: 18 },
-                    headerBackVisible: false,
-                    headerShadowVisible: false,
-                    headerStyle: { backgroundColor: Colors[colorScheme].background }
-                }} />
+                <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.confirmationContainer}>
                     <View style={styles.confirmationContent}>
-                        <View style={styles.successIcon}>
-                            <Ionicons name="checkmark-circle" size={80} color={Colors[colorScheme].success} />
+                        <View style={styles.successRing}>
+                            <View style={styles.successCircle}>
+                                <Check size={38} color={colorScheme === 'dark' ? c.primaryInk : c.accent} strokeWidth={3} />
+                            </View>
                         </View>
                         <Text style={styles.confirmationTitle}>{t('book.confirmed')}</Text>
                         <Text style={styles.confirmationSubtitle}>
                             {t('book.confirmedDesc')}
                         </Text>
 
-                        <Card style={styles.confirmationCard}>
-                            <View style={styles.confirmationDetail}>
-                                <Ionicons name="calendar-outline" size={20} color={Colors[colorScheme].primary} />
-                                <View style={styles.confirmationDetailText}>
-                                    <Text style={styles.confirmationLabel}>{t('detail.dateTime')}</Text>
-                                    <Text style={styles.confirmationValue}>{formatDateTime(slot!.start_time)}</Text>
+                        <Card radius={20} padding={4} style={styles.confirmationCard}>
+                            <View style={styles.recapRow}>
+                                <View style={styles.recapLabelGroup}>
+                                    <ShieldCheck size={15} color={c.textMuted} strokeWidth={2} />
+                                    <Text style={styles.recapLabel}>{t('book.matchDetails')}</Text>
                                 </View>
+                                <Text style={styles.recapValue} numberOfLines={1}>
+                                    {offer.age_group} · {offer.format}
+                                </Text>
                             </View>
 
-                            <View style={styles.confirmationDetail}>
-                                <Ionicons name="location-outline" size={20} color={Colors[colorScheme].primary} />
-                                <View style={styles.confirmationDetailText}>
-                                    <Text style={styles.confirmationLabel}>{t('offer.locationLabel')}</Text>
-                                    <Text style={styles.confirmationValue}>{offer?.location}</Text>
+                            <View style={styles.recapRow}>
+                                <View style={styles.recapLabelGroup}>
+                                    <CalendarClock size={15} color={c.textMuted} strokeWidth={2} />
+                                    <Text style={styles.recapLabel}>{t('detail.dateTime')}</Text>
                                 </View>
+                                <Text style={styles.recapValue} numberOfLines={1}>{formatDateTime(slot!.start_time)}</Text>
                             </View>
 
-                            <View style={styles.confirmationDetail}>
-                                <Ionicons name="shield-outline" size={20} color={Colors[colorScheme].primary} />
-                                <View style={styles.confirmationDetailText}>
-                                    <Text style={styles.confirmationLabel}>{t('offer.hostLabel')}</Text>
-                                    <Text style={styles.confirmationValue}>{offer?.host_club || offer?.host_name}</Text>
+                            <View style={[styles.recapRow, styles.recapRowLast]}>
+                                <View style={styles.recapLabelGroup}>
+                                    <MapPin size={15} color={c.textMuted} strokeWidth={2} />
+                                    <Text style={styles.recapLabel}>{t('offer.locationLabel')}</Text>
                                 </View>
+                                <Text style={styles.recapValue} numberOfLines={1}>{offer?.location}</Text>
                             </View>
                         </Card>
 
-                        <Text style={styles.confirmationNote}>
-                            {t('book.confirmedDesc')}
-                        </Text>
-
                         <Button
                             title="Add to Calendar"
+                            variant="primary"
+                            style={styles.confirmButton}
                             onPress={async () => {
                                 const title = `${offer?.age_group} ${offer?.format} — ${guestClub} vs ${offer?.host_club || offer?.host_name}`;
                                 const success = await addMatchToCalendar(
@@ -286,13 +284,12 @@ export default function BookSlotScreen() {
                                 );
                                 if (success) Alert.alert('Added!', 'Match added to your calendar.');
                             }}
-                            variant="secondary"
-                            style={styles.doneButton}
                         />
                         <Button
                             title={t('common.ok')}
+                            variant="secondary"
                             onPress={() => router.push('/')}
-                            style={{ marginTop: 8 }}
+                            style={styles.confirmButtonSecondary}
                         />
                     </View>
                 </View>
@@ -302,271 +299,279 @@ export default function BookSlotScreen() {
 
     return (
         <>
-            <Stack.Screen options={{
-                title: t('book.title'),
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
-                headerBackTitle: t('common.back'),
-                headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors[colorScheme].background },
-                headerTintColor: Colors[colorScheme].text,
-            }} />
-
-            <AppBanner deepLink={`matchslot://offer/book/${slotId}`} />
+            <Stack.Screen options={{ headerShown: false }} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
             >
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    {/* Selected Slot Summary */}
-                    <Card style={styles.summaryCard}>
-                        <View style={styles.summaryHeader}>
-                            <Ionicons name="checkmark-circle" size={32} color={Colors[colorScheme].success} />
-                            <Text style={styles.summaryTitle}>{t('book.matchDetails')}</Text>
+                {/* Back header with slot summary */}
+                <View style={styles.header}>
+                    <View style={styles.column}>
+                        <View style={styles.headerRow}>
+                            <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={8}>
+                                <ArrowLeft size={20} color={c.text} strokeWidth={2} />
+                            </Pressable>
+                            <View style={styles.headerSummary}>
+                                <Text style={styles.headerTitle} numberOfLines={1}>
+                                    {offer.age_group} · {offer.format}
+                                </Text>
+                                <Text style={styles.headerSub} numberOfLines={1}>
+                                    {formatDateTime(slot.start_time)}
+                                </Text>
+                            </View>
                         </View>
+                    </View>
+                </View>
 
-                        <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>{t('book.matchDetails')}</Text>
-                            <Text style={styles.summaryValue}>
-                                {offer.age_group} • {offer.format}
-                            </Text>
+                <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                    <View style={styles.column}>
+                        <Text style={styles.sectionKicker}>{t('book.yourTeamDetails')}</Text>
+
+                        <Card radius={20} padding={18} style={styles.formCard}>
+                            <Input
+                                label={t('book.clubName')}
+                                placeholder={t('book.clubName')}
+                                value={guestClub}
+                                onChangeText={setGuestClub}
+                            />
+                            <Input
+                                label={t('book.teamCoach')}
+                                placeholder={t('book.teamCoach')}
+                                value={guestName}
+                                onChangeText={setGuestName}
+                            />
+                            <Input
+                                label={t('book.contactInfo')}
+                                placeholder={t('book.contactInfo')}
+                                value={guestContact}
+                                onChangeText={setGuestContact}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                            <Input
+                                label={t('book.notes')}
+                                optional
+                                placeholder={t('book.notes')}
+                                value={guestNotes}
+                                onChangeText={setGuestNotes}
+                                multiline
+                                numberOfLines={3}
+                                style={styles.notesInput}
+                            />
+                        </Card>
+
+                        <View style={styles.trustRow}>
+                            <Wordmark size={15} />
                         </View>
-
-                        <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>{t('detail.dateTime')}</Text>
-                            <Text style={styles.summaryValue}>
-                                {formatDateTime(slot.start_time)}
-                            </Text>
-                        </View>
-
-                        <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>{t('offer.locationLabel')}</Text>
-                            <Text style={styles.summaryValue}>{offer.location}</Text>
-                        </View>
-                    </Card>
-
-                    {/* Booking Form */}
-                    <Text style={styles.sectionTitle}>{t('book.yourTeamDetails')}</Text>
-                    <Text style={styles.sectionSubtitle}>
-                        {t('book.yourTeamDetails')}
-                    </Text>
-
-                    <Input
-                        placeholder={t('book.teamCoach')}
-                        value={guestName}
-                        onChangeText={setGuestName}
-                        icon="person-outline"
-                    />
-
-                    <Input
-                        placeholder={t('book.clubName')}
-                        value={guestClub}
-                        onChangeText={setGuestClub}
-                        icon="shield-outline"
-                    />
-
-                    <Input
-                        placeholder={t('book.contactInfo')}
-                        value={guestContact}
-                        onChangeText={setGuestContact}
-                        icon="call-outline"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                    />
-
-                    <Input
-                        placeholder={t('book.notes')}
-                        value={guestNotes}
-                        onChangeText={setGuestNotes}
-                        icon="document-text-outline"
-                        multiline
-                        numberOfLines={3}
-                    />
-
-                    <View style={styles.divider} />
-
-                    <Card style={styles.infoCard}>
-                        <Ionicons name="information-circle-outline" size={24} color={Colors[colorScheme].primary} />
-                        <Text style={styles.infoText}>
-                            {t('book.confirmedDesc')}
-                        </Text>
-                    </Card>
+                    </View>
                 </ScrollView>
 
                 <View style={styles.footer}>
-                    <Button
-                        title={t('book.confirmBooking')}
-                        onPress={handleSubmit}
-                        loading={submitting}
-                    />
+                    <View style={styles.column}>
+                        <Button
+                            title={t('book.confirmBooking')}
+                            onPress={handleSubmit}
+                            loading={submitting}
+                            icon={<ArrowRight size={17} color={c.primaryInk} strokeWidth={2.5} />}
+                        />
+                    </View>
                 </View>
             </KeyboardAvoidingView>
         </>
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-    },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    errorText: {
-        fontSize: 16,
-        color: Colors[colorScheme].error,
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    summaryCard: {
-        padding: 20,
-        marginBottom: 24,
-        backgroundColor: Colors[colorScheme].secondary,
-        borderColor: Colors[colorScheme].primary,
-        borderWidth: 1,
-    },
-    summaryHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 16,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors[colorScheme].border,
-    },
-    summaryTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-    },
-    summaryDetails: {
-        marginBottom: 12,
-    },
-    summaryLabel: {
-        fontSize: 12,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 4,
-        textTransform: 'uppercase',
-        fontWeight: '600',
-    },
-    summaryValue: {
-        fontSize: 16,
-        color: Colors[colorScheme].text,
-        fontWeight: '600',
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 16,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: Colors[colorScheme].border,
-        marginVertical: 24,
-    },
-    infoCard: {
-        flexDirection: 'row',
-        padding: 16,
-        gap: 12,
-        backgroundColor: 'rgba(251,191,36,0.08)',
-        borderColor: 'rgba(251,191,36,0.3)',
-        borderWidth: 1,
-    },
-    infoText: {
-        flex: 1,
-        fontSize: 14,
-        color: Colors[colorScheme].text,
-        lineHeight: 20,
-    },
-    footer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: 20,
-        backgroundColor: Colors[colorScheme].background,
-        borderTopWidth: 1,
-        borderTopColor: Colors[colorScheme].border,
-    },
-    // Confirmation screen styles
-    confirmationContainer: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    confirmationContent: {
-        alignItems: 'center',
-        maxWidth: 400,
-        width: '100%',
-    },
-    successIcon: {
-        marginBottom: 16,
-    },
-    confirmationTitle: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        textAlign: 'center',
-        marginBottom: 8,
-    },
-    confirmationSubtitle: {
-        fontSize: 16,
-        color: Colors[colorScheme].textSecondary,
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    confirmationCard: {
-        width: '100%',
-        padding: 20,
-        marginBottom: 24,
-        backgroundColor: Colors[colorScheme].secondary,
-        borderColor: Colors[colorScheme].primary,
-        borderWidth: 1,
-    },
-    confirmationDetail: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-        marginBottom: 16,
-    },
-    confirmationDetailText: {
-        flex: 1,
-    },
-    confirmationLabel: {
-        fontSize: 12,
-        color: Colors[colorScheme].textSecondary,
-        textTransform: 'uppercase',
-        fontWeight: '600',
-        marginBottom: 2,
-    },
-    confirmationValue: {
-        fontSize: 16,
-        color: Colors[colorScheme].text,
-        fontWeight: '600',
-    },
-    confirmationNote: {
-        fontSize: 14,
-        color: Colors[colorScheme].textSecondary,
-        textAlign: 'center',
-        marginBottom: 24,
-        lineHeight: 20,
-    },
-    doneButton: {
-        width: '100%',
-    },
-});
+const COLUMN = 460;
+
+const getStyles = (colorScheme: 'light' | 'dark') => {
+    const c = Colors[colorScheme];
+    return StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: c.background,
+        },
+        centerContainer: {
+            flex: 1,
+            backgroundColor: c.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        errorText: {
+            fontFamily: Fonts.body,
+            fontSize: 14,
+            fontWeight: '600',
+            color: c.error,
+        },
+        column: {
+            width: '100%',
+            maxWidth: COLUMN,
+            alignSelf: 'center',
+        },
+        // Header
+        header: {
+            backgroundColor: c.background,
+            borderBottomWidth: 1,
+            borderBottomColor: c.divider,
+            paddingHorizontal: 20,
+            paddingTop: Platform.OS === 'web' ? 16 : 56,
+            paddingBottom: 14,
+        },
+        headerRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+        },
+        backButton: {
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            borderWidth: 1,
+            borderColor: c.border,
+            backgroundColor: c.card,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        headerSummary: {
+            flex: 1,
+        },
+        headerTitle: {
+            fontFamily: Fonts.display,
+            fontSize: 17,
+            fontWeight: '800',
+            letterSpacing: -0.3,
+            color: c.text,
+        },
+        headerSub: {
+            fontFamily: Fonts.body,
+            fontSize: 12,
+            fontWeight: '500',
+            color: c.textMuted,
+            marginTop: 2,
+        },
+        scrollContent: {
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 120,
+        },
+        sectionKicker: {
+            fontFamily: Fonts.body,
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: c.textMuted,
+            marginBottom: 12,
+        },
+        formCard: {},
+        notesInput: {
+            minHeight: 88,
+        },
+        trustRow: {
+            alignItems: 'center',
+            marginTop: 8,
+            opacity: 0.7,
+        },
+        footer: {
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: Platform.OS === 'web' ? 16 : 28,
+            backgroundColor: c.background,
+            borderTopWidth: 1,
+            borderTopColor: c.divider,
+        },
+        // Confirmation
+        confirmationContainer: {
+            flex: 1,
+            backgroundColor: c.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+        },
+        confirmationContent: {
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: COLUMN,
+        },
+        successRing: {
+            width: 92,
+            height: 92,
+            borderRadius: 46,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colorScheme === 'dark' ? 'rgba(53,217,138,0.16)' : 'rgba(21,96,61,0.12)',
+            marginBottom: 20,
+        },
+        successCircle: {
+            width: 76,
+            height: 76,
+            borderRadius: 38,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colorScheme === 'dark' ? c.primary : c.primary,
+        },
+        confirmationTitle: {
+            fontFamily: Fonts.display,
+            fontSize: 28,
+            fontWeight: '800',
+            letterSpacing: -0.8,
+            color: c.text,
+            textAlign: 'center',
+            marginBottom: 8,
+        },
+        confirmationSubtitle: {
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '500',
+            color: c.textMuted,
+            textAlign: 'center',
+            marginBottom: 24,
+            lineHeight: 20,
+            paddingHorizontal: 8,
+        },
+        confirmationCard: {
+            width: '100%',
+            paddingHorizontal: 18,
+            paddingVertical: 4,
+            marginBottom: 20,
+        },
+        recapRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 13,
+            borderBottomWidth: 1,
+            borderBottomColor: c.dividerFine,
+            gap: 12,
+        },
+        recapRowLast: {
+            borderBottomWidth: 0,
+        },
+        recapLabelGroup: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+        },
+        recapLabel: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '500',
+            color: c.textMuted,
+        },
+        recapValue: {
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '700',
+            color: c.text,
+            flexShrink: 1,
+            textAlign: 'right',
+        },
+        confirmButton: {
+            width: '100%',
+        },
+        confirmButtonSecondary: {
+            width: '100%',
+            marginTop: 10,
+        },
+    });
+};

@@ -1,20 +1,36 @@
 import { AnimatedPressable } from '@/components/ui/AnimatedPressable';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { Crest } from '@/components/ui/Crest';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ManageSkeleton } from '@/components/ui/SkeletonLoader';
+import { SlotPips } from '@/components/ui/SlotPips';
+import { StatusChip, offerStatusKind, slotStatusKind } from '@/components/ui/StatusChip';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { useAuth } from '@/contexts/AuthContext';
 import { openInMaps } from '@/lib/mapsUtils';
 import { canShareWhatsApp, copyLinkToClipboard, shareMatchLink, shareViaWhatsApp } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots, Slot, SlotStatus } from '@/types/database';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
+import {
+    Calendar,
+    ChevronRight,
+    Clock,
+    MapPin,
+    MessageCircle,
+    Navigation,
+    Plus,
+    Share2,
+    Trash2,
+} from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Calendar } from 'react-native-calendars';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -29,6 +45,7 @@ interface ResultsModalProps {
 function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
     const { t } = useTranslation();
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const modalStyles = getModalStyles(colorScheme);
     const [homeScore, setHomeScore] = useState('');
     const [awayScore, setAwayScore] = useState('');
@@ -64,10 +81,11 @@ function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
                                 onChangeText={setHomeScore}
                                 keyboardType="number-pad"
                                 placeholder="0"
+                                placeholderTextColor={c.textTertiary}
                                 maxLength={2}
                             />
                         </View>
-                        <Text style={modalStyles.scoreSeparator}>-</Text>
+                        <Text style={modalStyles.scoreSeparator}>–</Text>
                         <View style={modalStyles.scoreInput}>
                             <Text style={modalStyles.scoreLabel}>{t('common.away')}</Text>
                             <TextInput
@@ -76,6 +94,7 @@ function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
                                 onChangeText={setAwayScore}
                                 keyboardType="number-pad"
                                 placeholder="0"
+                                placeholderTextColor={c.textTertiary}
                                 maxLength={2}
                             />
                         </View>
@@ -86,17 +105,18 @@ function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
                         value={notes}
                         onChangeText={setNotes}
                         placeholder={t('manage.matchNotes')}
+                        placeholderTextColor={c.textTertiary}
                         multiline
                         numberOfLines={3}
                     />
 
                     <View style={modalStyles.buttonRow}>
-                        <Pressable style={modalStyles.cancelButton} onPress={onClose}>
-                            <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
-                        </Pressable>
-                        <Pressable style={modalStyles.saveButton} onPress={handleSave}>
-                            <Text style={modalStyles.saveText}>{t('manage.saveResult')}</Text>
-                        </Pressable>
+                        <View style={modalStyles.buttonHalf}>
+                            <Button title={t('common.cancel')} variant="secondary" onPress={onClose} />
+                        </View>
+                        <View style={modalStyles.buttonHalf}>
+                            <Button title={t('manage.saveResult')} onPress={handleSave} />
+                        </View>
                     </View>
                 </View>
             </View>
@@ -107,26 +127,30 @@ function ResultsModal({ visible, slot, onClose, onSave }: ResultsModalProps) {
 const getModalStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
     container: {
-        backgroundColor: Colors[colorScheme].backgroundAlt,
+        backgroundColor: Colors[colorScheme].card,
         borderRadius: 20,
         padding: 24,
-        maxWidth: 340,
+        maxWidth: 360,
         width: '100%',
+        borderWidth: 1,
+        borderColor: Colors[colorScheme].border,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 24,
         elevation: 8,
     },
     title: {
-        fontSize: 20,
-        fontWeight: '700',
+        fontFamily: Fonts.display,
+        fontSize: 18,
+        fontWeight: '800',
+        letterSpacing: -0.5,
         color: Colors[colorScheme].text,
         textAlign: 'center',
         marginBottom: 20,
@@ -142,128 +166,70 @@ const getModalStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
         alignItems: 'center',
     },
     scoreLabel: {
-        fontSize: 14,
-        color: Colors[colorScheme].textSecondary,
+        fontFamily: Fonts.body,
+        fontSize: 12.5,
+        color: Colors[colorScheme].textMuted,
         marginBottom: 8,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     scoreField: {
         width: 80,
-        height: 60,
-        fontSize: 32,
-        fontWeight: '700',
+        height: 68,
+        fontFamily: Fonts.display,
+        fontSize: 34,
+        fontWeight: '800',
+        letterSpacing: -1,
         textAlign: 'center',
         color: Colors[colorScheme].text,
         borderWidth: 1,
-        borderColor: Colors[colorScheme].border,
-        borderRadius: 16,
-        backgroundColor: Colors[colorScheme].card,
+        borderColor: Colors[colorScheme].divider,
+        borderRadius: 14,
+        backgroundColor: Colors[colorScheme].surfaceSunk,
     },
     scoreSeparator: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
+        fontFamily: Fonts.display,
+        fontSize: 30,
+        fontWeight: '800',
+        color: Colors[colorScheme].accent,
     },
     notesInput: {
         borderWidth: 1,
-        borderColor: Colors[colorScheme].border,
-        borderRadius: 16,
-        padding: 12,
-        fontSize: 16,
+        borderColor: Colors[colorScheme].divider,
+        borderRadius: 12,
+        padding: 14,
+        fontFamily: Fonts.body,
+        fontSize: 14,
         color: Colors[colorScheme].text,
-        minHeight: 80,
+        minHeight: 84,
         textAlignVertical: 'top',
         marginBottom: 20,
         backgroundColor: Colors[colorScheme].card,
     },
     buttonRow: {
         flexDirection: 'row',
-        justifyContent: 'center',
         gap: 12,
     },
-    cancelButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 16,
-        backgroundColor: Colors[colorScheme].secondary,
-        minWidth: 100,
-    },
-    cancelText: {
-        fontSize: 16,
-        fontWeight: '500',
-        textAlign: 'center',
-        color: Colors[colorScheme].textSecondary,
-    },
-    saveButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 16,
-        backgroundColor: Colors[colorScheme].primary,
-        minWidth: 100,
-        shadowColor: Colors[colorScheme].primary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
-    saveText: {
-        fontSize: 16,
-        fontWeight: '600',
-        textAlign: 'center',
-        color: '#fff',
+    buttonHalf: {
+        flex: 1,
     },
 });
 
-// Slot status badge config
-const getSlotBadgeConfig = (status: SlotStatus, colorScheme: 'light' | 'dark') => {
+// Slot status → translated label key (kind is derived via slotStatusKind).
+const getSlotLabelKey = (status: SlotStatus): string => {
     switch (status) {
-        case 'OPEN':
-            return {
-                icon: 'radio-button-on' as const,
-                color: Colors[colorScheme].success,
-                bg: 'rgba(34,197,94,0.12)',
-                labelKey: 'manage.awaitingBooking',
-            };
-        case 'HELD':
-            return {
-                icon: 'pause-circle' as const,
-                color: '#FFA500',
-                bg: 'rgba(255,165,0,0.12)',
-                labelKey: 'manage.held',
-            };
-        case 'PENDING_APPROVAL':
-            return {
-                icon: 'hourglass' as const,
-                color: Colors[colorScheme].warning,
-                bg: 'rgba(251,191,36,0.12)',
-                labelKey: 'manage.pending',
-            };
-        case 'BOOKED':
-            return {
-                icon: 'checkmark-circle' as const,
-                color: Colors[colorScheme].primary,
-                bg: colorScheme === 'dark' ? 'rgba(74,222,128,0.15)' : 'rgba(27,139,78,0.12)',
-                labelKey: 'manage.booked',
-            };
-        case 'REJECTED':
-            return {
-                icon: 'close-circle' as const,
-                color: Colors[colorScheme].error,
-                bg: 'rgba(239,68,68,0.12)',
-                labelKey: 'manage.rejected',
-            };
-        default:
-            return {
-                icon: 'ellipse' as const,
-                color: Colors[colorScheme].textSecondary,
-                bg: 'rgba(168,162,158,0.08)',
-                labelKey: status as string,
-            };
+        case 'OPEN': return 'manage.awaitingBooking';
+        case 'HELD': return 'manage.held';
+        case 'PENDING_APPROVAL': return 'manage.pending';
+        case 'BOOKED': return 'manage.booked';
+        case 'REJECTED': return 'manage.rejected';
+        default: return status as string;
     }
 };
 
 export default function ManageScreen() {
     const { t } = useTranslation();
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const styles = getStyles(colorScheme);
     const { user } = useAuth();
     const [offers, setOffers] = useState<MatchOfferWithSlots[]>([]);
@@ -272,10 +238,16 @@ export default function ManageScreen() {
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
     const [whatsAppAvailable, setWhatsAppAvailable] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'pending' | 'confirmed'>('all');
 
     // Results modal state
     const [resultsModalVisible, setResultsModalVisible] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+
+    // Segmented control ↔ viewMode mapping (Agenda = calendar/date view, List = list view)
+    const segmentOptions = [t('manage.agenda'), t('manage.list')];
+    const segmentValue = viewMode === 'calendar' ? segmentOptions[0] : segmentOptions[1];
+    const onSegmentChange = (v: string) => setViewMode(v === segmentOptions[0] ? 'calendar' : 'list');
 
     useEffect(() => {
         canShareWhatsApp().then(setWhatsAppAvailable);
@@ -350,36 +322,20 @@ export default function ManageScreen() {
         shareViaWhatsApp(offer.share_token, details);
     };
 
-    // Calendar: build marked dates from all slots
-    const markedDates = React.useMemo(() => {
-        const marks: Record<string, any> = {};
-        offers.forEach(offer => {
-            offer.slots.forEach(slot => {
-                const day = slot.start_time.split('T')[0];
-                const badge = getSlotBadgeConfig(slot.status, colorScheme);
-                if (!marks[day]) marks[day] = { dots: [], marked: true };
-                marks[day].dots.push({ color: badge.color, key: slot.id });
-            });
-        });
-        // Highlight selected date
-        if (selectedCalDate) {
-            marks[selectedCalDate] = {
-                ...(marks[selectedCalDate] || {}),
-                selected: true,
-                selectedColor: Colors[colorScheme].primary,
-            };
-        }
-        return marks;
-    }, [offers, selectedCalDate, colorScheme]);
+    // Client-side filter of offers by status kind.
+    const filteredOffers = React.useMemo(() => {
+        if (statusFilter === 'all') return offers;
+        return offers.filter(o => offerStatusKind(o.status) === statusFilter);
+    }, [offers, statusFilter]);
 
-    const slotsForSelectedDate = React.useMemo(() => {
-        if (!selectedCalDate) return [];
-        return offers.flatMap(offer =>
-            offer.slots
-                .filter(s => s.start_time.startsWith(selectedCalDate))
-                .map(s => ({ slot: s, offer }))
+    // Calendar/agenda: build a flat, date-sorted list of slots with their offer.
+    const slotsByDate = React.useMemo(() => {
+        const rows = filteredOffers.flatMap(offer =>
+            offer.slots.map(slot => ({ slot, offer }))
         );
-    }, [offers, selectedCalDate]);
+        rows.sort((a, b) => a.slot.start_time.localeCompare(b.slot.start_time));
+        return rows;
+    }, [filteredOffers]);
 
     const handleDeleteOffer = async (offerId: string) => {
         Alert.alert(
@@ -456,6 +412,175 @@ export default function ManageScreen() {
         });
     };
 
+    const formatDay = (dateStr: string) =>
+        new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const formatTimeRange = (start: string, end: string) =>
+        `${new Date(start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} – ${new Date(end).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+
+    const isOfferPast = (offer: MatchOfferWithSlots) =>
+        offer.status === 'CLOSED' || offer.status === 'CANCELLED';
+
+    // ── Header (title + segmented control) ──
+    const renderHeader = () => (
+        <View style={styles.header}>
+            <Text style={styles.title}>{t('manage.title')}</Text>
+            <SegmentedControl options={segmentOptions} value={segmentValue} onChange={onSegmentChange} />
+        </View>
+    );
+
+    // ── Filter chips ──
+    const renderFilters = () => (
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            style={styles.filterScroll}
+        >
+            <Chip label={t('manage.filterAll')} active={statusFilter === 'all'} onPress={() => setStatusFilter('all')} />
+            <Chip label={t('manage.filterOpen')} active={statusFilter === 'open'} onPress={() => setStatusFilter('open')} />
+            <Chip label={t('manage.filterPending')} active={statusFilter === 'pending'} onPress={() => setStatusFilter('pending')} />
+            <Chip label={t('manage.filterConfirmed')} active={statusFilter === 'confirmed'} onPress={() => setStatusFilter('confirmed')} />
+        </ScrollView>
+    );
+
+    // ── One offer row card ──
+    const renderOfferRow = (offer: MatchOfferWithSlots) => {
+        const past = isOfferPast(offer);
+        const kind = offerStatusKind(offer.status);
+        const statusColor = kind === 'open' ? c.primary
+            : kind === 'pending' ? c.warning
+            : c.divider;
+        const bookedCount = offer.slots.filter(s => s.status === 'BOOKED').length;
+        const total = offer.slots.length;
+        const statusLabel = offer.status === 'PENDING_APPROVAL' ? t('manage.awaitingApproval')
+            : offer.status === 'OPEN' ? t('manage.open')
+            : offer.status === 'CLOSED' ? t('manage.matchBooked')
+            : offer.status === 'CANCELLED' ? t('manage.cancelled')
+            : offer.status;
+
+        const progressLabel = offer.status === 'PENDING_APPROVAL'
+            ? t('manage.awaitingApproval')
+            : `${bookedCount} / ${total} ${t('common.slots')}`;
+
+        return (
+            <View key={offer.id} style={[styles.offerCard, past && styles.offerCardPast]}>
+                {/* Top line */}
+                <View style={styles.offerTop}>
+                    <Crest
+                        name={offer.host_club}
+                        size={30}
+                        shape="square"
+                        ringColor={statusColor}
+                        muted={past}
+                    />
+                    <View style={styles.offerTopInfo}>
+                        <Text style={styles.offerTitle} numberOfLines={1}>
+                            {offer.age_group} · {offer.format}
+                        </Text>
+                        <Text style={styles.offerMeta} numberOfLines={1}>
+                            {offer.slots.length > 0
+                                ? formatDateTime(offer.slots[0].start_time)
+                                : `${offer.duration} ${t('common.minutes')}`}
+                        </Text>
+                    </View>
+                    <StatusChip
+                        kind={past ? 'closed' : kind}
+                        label={past ? t('manage.matchBooked') : statusLabel}
+                    />
+                </View>
+
+                {/* Location row */}
+                <TouchableOpacity style={styles.offerLocation} onPress={() => openInMaps(offer.location)}>
+                    <MapPin size={12} color={c.primary} strokeWidth={2} />
+                    <Text style={styles.offerLocationText} numberOfLines={1}>{offer.location}</Text>
+                    <Navigation size={11} color={c.primary} strokeWidth={2} />
+                </TouchableOpacity>
+
+                {/* Slots list */}
+                <View style={styles.slotList}>
+                    {offer.slots.map((slot) => (
+                        <AnimatedPressable
+                            key={slot.id}
+                            onPress={() => router.push(`/match/detail/${slot.id}` as any)}
+                            scaleTo={0.98}
+                        >
+                            <View style={styles.slotRow}>
+                                <Clock size={15} color={c.textMuted} strokeWidth={2} />
+                                <Text style={styles.slotTime} numberOfLines={1}>
+                                    {formatDateTime(slot.start_time)}
+                                    {slot.guest_club ? `  ·  ${slot.guest_club}` : ''}
+                                </Text>
+                                {slot.result_saved_at ? (
+                                    <View style={styles.resultBadge}>
+                                        <Text style={styles.resultText}>{slot.home_score} – {slot.away_score}</Text>
+                                    </View>
+                                ) : canSaveResults(slot) ? (
+                                    <Text style={styles.slotResultCta}>{t('manage.result')}</Text>
+                                ) : (
+                                    <StatusChip kind={slotStatusKind(slot.status)} label={t(getSlotLabelKey(slot.status))} />
+                                )}
+                                <ChevronRight size={16} color={c.textTertiary} strokeWidth={2} />
+                            </View>
+                        </AnimatedPressable>
+                    ))}
+                </View>
+
+                {/* Bottom line: slot pips + progress label */}
+                <View style={styles.offerBottom}>
+                    <SlotPips total={total} filled={bookedCount} muted={past} />
+                    <Text style={styles.progressLabel} numberOfLines={1}>{progressLabel}</Text>
+                </View>
+
+                {/* Actions */}
+                <View style={styles.actions}>
+                    {offer.status === 'OPEN' && (
+                        <>
+                            <View style={styles.actionFlex}>
+                                <Button
+                                    title={t('manage.shareLink')}
+                                    variant="secondary"
+                                    icon={<Share2 size={16} color={c.primary} strokeWidth={2} />}
+                                    onPress={() => handleShareLink(offer)}
+                                    style={styles.actionBtn}
+                                />
+                            </View>
+                            {whatsAppAvailable && (
+                                <TouchableOpacity style={styles.iconAction} onPress={() => handleWhatsApp(offer)}>
+                                    <MessageCircle size={18} color={c.primary} strokeWidth={2} />
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity style={styles.iconActionDanger} onPress={() => handleDeleteOffer(offer.id)}>
+                                <Trash2 size={18} color={c.error} strokeWidth={2} />
+                            </TouchableOpacity>
+                        </>
+                    )}
+                    {offer.status === 'PENDING_APPROVAL' && (
+                        <>
+                            <View style={styles.actionFlex}>
+                                <View style={styles.pendingNote}>
+                                    <Clock size={15} color={c.warningText} strokeWidth={2} />
+                                    <Text style={styles.pendingNoteText} numberOfLines={1}>{t('manage.waitingApprover')}</Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity style={styles.iconActionDanger} onPress={() => handleDeleteOffer(offer.id)}>
+                                <Trash2 size={18} color={c.error} strokeWidth={2} />
+                            </TouchableOpacity>
+                        </>
+                    )}
+                    {offer.status !== 'OPEN' && offer.status !== 'PENDING_APPROVAL' && (
+                        <View style={styles.actionFlex}>
+                            <TouchableOpacity style={styles.iconActionDangerWide} onPress={() => handleDeleteOffer(offer.id)}>
+                                <Trash2 size={16} color={c.error} strokeWidth={2} />
+                                <Text style={styles.deleteWideText}>{t('common.delete')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            </View>
+        );
+    };
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
@@ -468,15 +593,17 @@ export default function ManageScreen() {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.emptyContainer}>
-                    <View style={styles.emptyIconWrap}>
-                        <Ionicons name="football-outline" size={44} color={Colors[colorScheme].primary} />
-                    </View>
-                    <Text style={styles.emptyTitle}>{t('manage.noOffers')}</Text>
-                    <Text style={styles.emptySubtitle}>{t('manage.noOffersDesc')}</Text>
-                    <Button
-                        title={t('manage.createOffer')}
-                        onPress={() => router.push('/match/create')}
-                        style={{ marginTop: 12 }}
+                    <EmptyState
+                        icon={<Calendar size={24} color={c.primary} strokeWidth={2} />}
+                        title={t('manage.noOffers')}
+                        subtitle={t('manage.noOffersDesc')}
+                        action={
+                            <Button
+                                title={t('manage.createOffer')}
+                                icon={<Plus size={16} color={c.primaryInk} strokeWidth={2.5} />}
+                                onPress={() => router.push('/match/create')}
+                            />
+                        }
                     />
                 </View>
 
@@ -486,7 +613,7 @@ export default function ManageScreen() {
                     onPress={() => router.push('/match/create')}
                     scaleTo={0.9}
                 >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Plus size={26} color={c.primaryInk} strokeWidth={2.5} />
                 </AnimatedPressable>
             </SafeAreaView>
         );
@@ -510,256 +637,88 @@ export default function ManageScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={Colors[colorScheme].primary}
+                        tintColor={c.primary}
                     />
                 }
             >
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.title}>{t('manage.title')}</Text>
-                        <Text style={styles.subtitle}>
-                            {offers.length} {offers.length === 1 ? t('common.offer') : t('common.offers')}
-                        </Text>
-                    </View>
-                    <View style={styles.viewToggle}>
-                        <TouchableOpacity
-                            style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
-                            onPress={() => setViewMode('list')}
-                        >
-                            <Ionicons name="list" size={18} color={viewMode === 'list' ? '#fff' : Colors[colorScheme].textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.toggleBtn, viewMode === 'calendar' && styles.toggleBtnActive]}
-                            onPress={() => setViewMode('calendar')}
-                        >
-                            <Ionicons name="calendar" size={18} color={viewMode === 'calendar' ? '#fff' : Colors[colorScheme].textSecondary} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                {renderHeader()}
+                {renderFilters()}
 
-                {/* Calendar View */}
+                {/* Agenda (date-grouped) view */}
                 {viewMode === 'calendar' && (
-                    <View style={styles.calendarContainer}>
-                        <Calendar
-                            markingType="multi-dot"
-                            markedDates={markedDates}
-                            onDayPress={(day) => setSelectedCalDate(day.dateString)}
-                            theme={{
-                                backgroundColor: 'transparent',
-                                calendarBackground: 'transparent',
-                                textSectionTitleColor: Colors[colorScheme].textSecondary,
-                                selectedDayBackgroundColor: Colors[colorScheme].primary,
-                                selectedDayTextColor: '#fff',
-                                todayTextColor: Colors[colorScheme].primary,
-                                dayTextColor: Colors[colorScheme].text,
-                                textDisabledColor: Colors[colorScheme].textTertiary,
-                                dotColor: Colors[colorScheme].primary,
-                                monthTextColor: Colors[colorScheme].text,
-                                arrowColor: Colors[colorScheme].primary,
-                            }}
+                    slotsByDate.length === 0 ? (
+                        <EmptyState
+                            icon={<Calendar size={24} color={c.primary} strokeWidth={2} />}
+                            title={t('manage.noMatchesOnDay')}
+                            style={{ marginTop: 20 }}
                         />
-                        {selectedCalDate && slotsForSelectedDate.length > 0 && (
-                            <View style={styles.calDateSlots}>
-                                <Text style={styles.calDateTitle}>
-                                    {new Date(selectedCalDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                </Text>
-                                {slotsForSelectedDate.map(({ slot, offer }) => {
-                                    const badge = getSlotBadgeConfig(slot.status, colorScheme);
+                    ) : (
+                        <View style={styles.agenda}>
+                            {(() => {
+                                let lastDay: string | null = null;
+                                return slotsByDate.map(({ slot, offer }) => {
+                                    const day = slot.start_time.split('T')[0];
+                                    const showHeader = day !== lastDay;
+                                    lastDay = day;
+                                    const past = isMatchPast(slot);
                                     return (
-                                        <AnimatedPressable
-                                            key={slot.id}
-                                            scaleTo={0.98}
-                                            onPress={() => router.push(`/match/detail/${slot.id}` as any)}
-                                        >
-                                            <Card style={styles.calSlotCard}>
-                                                <View style={styles.calSlotRow}>
-                                                    <View>
-                                                        <Text style={styles.calSlotTitle}>{offer.age_group} • {offer.format}</Text>
-                                                        <Text style={styles.calSlotTime}>
-                                                            {new Date(slot.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                                                            {' – '}
-                                                            {new Date(slot.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                        <React.Fragment key={slot.id}>
+                                            {showHeader && (
+                                                <Text style={styles.kicker}>{formatDay(slot.start_time)}</Text>
+                                            )}
+                                            <AnimatedPressable
+                                                scaleTo={0.98}
+                                                onPress={() => router.push(`/match/detail/${slot.id}` as any)}
+                                            >
+                                                <View style={[styles.agendaCard, past && styles.offerCardPast]}>
+                                                    <Crest
+                                                        name={offer.host_club}
+                                                        size={30}
+                                                        shape="square"
+                                                        muted={past}
+                                                    />
+                                                    <View style={styles.agendaInfo}>
+                                                        <Text style={styles.agendaTitle} numberOfLines={1}>
+                                                            {offer.age_group} · {offer.format}
                                                         </Text>
-                                                        <TouchableOpacity onPress={() => openInMaps(offer.location)} style={styles.calSlotLocation}>
-                                                            <Ionicons name="location-outline" size={13} color={Colors[colorScheme].primary} />
-                                                            <Text style={styles.calSlotLocationText} numberOfLines={1}>{offer.location}</Text>
+                                                        <Text style={styles.agendaTime} numberOfLines={1}>
+                                                            {formatTimeRange(slot.start_time, slot.end_time)}
+                                                        </Text>
+                                                        <TouchableOpacity style={styles.agendaLocation} onPress={() => openInMaps(offer.location)}>
+                                                            <MapPin size={12} color={c.primary} strokeWidth={2} />
+                                                            <Text style={styles.agendaLocationText} numberOfLines={1}>{offer.location}</Text>
                                                         </TouchableOpacity>
                                                     </View>
-                                                    <View style={[styles.slotStatusPill, { backgroundColor: badge.bg }]}>
-                                                        <Ionicons name={badge.icon} size={12} color={badge.color} />
-                                                        <Text style={[styles.slotStatusText, { color: badge.color }]}>{t(badge.labelKey)}</Text>
-                                                    </View>
+                                                    <StatusChip
+                                                        kind={slotStatusKind(slot.status)}
+                                                        label={t(getSlotLabelKey(slot.status))}
+                                                    />
                                                 </View>
-                                            </Card>
-                                        </AnimatedPressable>
+                                            </AnimatedPressable>
+                                        </React.Fragment>
                                     );
-                                })}
-                            </View>
-                        )}
-                        {selectedCalDate && slotsForSelectedDate.length === 0 && (
-                            <Text style={styles.calNoSlots}>{t('manage.noMatchesOnDay')}</Text>
-                        )}
-                    </View>
+                                });
+                            })()}
+                        </View>
+                    )
                 )}
 
-                {viewMode === 'list' && offers.map((offer) => (
-                    <View key={offer.id} style={styles.scoreboardCard}>
-                        {/* Scoreboard Header — dark strip */}
-                        <View style={styles.scoreboardHeader}>
-                            <View style={styles.scoreboardTeamSide}>
-                                <Text style={styles.scoreboardTeamLabel}>HOST</Text>
-                                <Text style={styles.scoreboardTeamName} numberOfLines={1}>
-                                    {offer.host_club || 'Your Team'}
-                                </Text>
-                            </View>
-                            <View style={styles.scoreboardCenter}>
-                                <Text style={styles.scoreboardFormat}>{offer.format}</Text>
-                                <Text style={styles.scoreboardAge}>{offer.age_group}</Text>
-                            </View>
-                            <View style={[styles.scoreboardTeamSide, { alignItems: 'flex-end' }]}>
-                                <Text style={styles.scoreboardTeamLabel}>SLOTS</Text>
-                                <Text style={styles.scoreboardSlotCount}>
-                                    {offer.slots.filter(s => s.status === 'BOOKED').length}/{offer.slots.length}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Status LED strip */}
-                        <View style={[styles.scoreboardLED, {
-                            backgroundColor: offer.status === 'OPEN' ? 'rgba(34,197,94,0.12)' :
-                                offer.status === 'PENDING_APPROVAL' ? 'rgba(251,191,36,0.12)' : 'rgba(168,162,158,0.08)',
-                        }]}>
-                            <View style={[styles.ledDot, {
-                                backgroundColor: offer.status === 'OPEN' ? Colors[colorScheme].success :
-                                    offer.status === 'PENDING_APPROVAL' ? Colors[colorScheme].warning : Colors[colorScheme].textSecondary,
-                            }]} />
-                            <Text style={[styles.ledText, {
-                                color: offer.status === 'OPEN' ? Colors[colorScheme].success :
-                                    offer.status === 'PENDING_APPROVAL' ? Colors[colorScheme].warning : Colors[colorScheme].textSecondary,
-                            }]}>
-                                {offer.status === 'PENDING_APPROVAL' ? t('manage.awaitingApproval') : offer.status}
-                            </Text>
-                            <TouchableOpacity style={styles.ledRight} onPress={() => openInMaps(offer.location)}>
-                                <Ionicons name="location-outline" size={12} color={Colors[colorScheme].primary} />
-                                <Text style={[styles.ledLocation, { color: Colors[colorScheme].primary }]} numberOfLines={1}>{offer.location}</Text>
-                                <Ionicons name="navigate-outline" size={11} color={Colors[colorScheme].primary} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Slots body */}
-                        <View style={styles.scoreboardBody}>
-                            <Text style={styles.scoreboardSlotsTitle}>
-                                {offer.duration} {t('common.minutes')}  •  {offer.slots.length} {offer.slots.length === 1 ? t('common.slot') : t('common.slots')}
-                            </Text>
-                            {offer.slots.map((slot) => {
-                                const badge = getSlotBadgeConfig(slot.status, colorScheme);
-                                return (
-                                    <AnimatedPressable
-                                        key={slot.id}
-                                        onPress={() => router.push(`/match/detail/${slot.id}` as any)}
-                                        scaleTo={0.98}
-                                    >
-                                        <View style={styles.slotRow}>
-                                            <View style={styles.slotInfo}>
-                                                <Ionicons name="time-outline" size={16} color={Colors[colorScheme].textSecondary} />
-                                                <Text style={styles.slotTime}>
-                                                    {formatDateTime(slot.start_time)}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.slotStatusRow}>
-                                                <View style={[styles.slotStatusPill, { backgroundColor: badge.bg }]}>
-                                                    <Ionicons name={badge.icon} size={12} color={badge.color} />
-                                                    <Text style={[styles.slotStatusText, { color: badge.color }]}>
-                                                        {t(badge.labelKey)}
-                                                    </Text>
-                                                </View>
-                                                {slot.guest_club && (
-                                                    <Text style={styles.guestClub}> vs {slot.guest_club}</Text>
-                                                )}
-                                            </View>
-
-                                            {slot.result_saved_at ? (
-                                                <View style={styles.resultBadge}>
-                                                    <Text style={styles.resultText}>
-                                                        {slot.home_score} - {slot.away_score}
-                                                    </Text>
-                                                </View>
-                                            ) : canSaveResults(slot) ? (
-                                                <View style={styles.saveResultButton}>
-                                                    <Ionicons name="create-outline" size={14} color={Colors[colorScheme].primary} />
-                                                    <Text style={styles.saveResultText}>{t('manage.result')}</Text>
-                                                </View>
-                                            ) : (
-                                                <Ionicons name="chevron-forward" size={16} color={Colors[colorScheme].textTertiary} />
-                                            )}
-                                        </View>
-                                    </AnimatedPressable>
-                                );
-                            })}
-                        </View>
-
-                        {/* Actions */}
-                        <View style={styles.actions}>
-                            {offer.status === 'PENDING_APPROVAL' ? (
-                                <>
-                                    <View style={[styles.actionButton, styles.pendingButton]}>
-                                        <Ionicons name="hourglass-outline" size={20} color={Colors[colorScheme].warning} />
-                                        <Text style={[styles.actionButtonText, { color: Colors[colorScheme].warning }]}>
-                                            {t('manage.waitingApprover')}
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.closeButton]}
-                                        onPress={() => handleDeleteOffer(offer.id)}
-                                    >
-                                        <Ionicons name="trash-outline" size={20} color={Colors[colorScheme].error} />
-                                    </TouchableOpacity>
-                                </>
-                            ) : offer.status === 'OPEN' ? (
-                                <>
-                                    <TouchableOpacity
-                                        style={styles.actionButton}
-                                        onPress={() => handleShareLink(offer)}
-                                    >
-                                        <Ionicons name="share-outline" size={20} color={Colors[colorScheme].primary} />
-                                        <Text style={styles.actionButtonText}>{t('manage.shareLink')}</Text>
-                                    </TouchableOpacity>
-
-                                    {whatsAppAvailable && (
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, styles.whatsappButton]}
-                                            onPress={() => handleWhatsApp(offer)}
-                                        >
-                                            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.closeButton]}
-                                        onPress={() => handleDeleteOffer(offer.id)}
-                                    >
-                                        <Ionicons name="trash-outline" size={20} color={Colors[colorScheme].error} />
-                                    </TouchableOpacity>
-                                </>
-                            ) : (
-                                <>
-                                    <View style={[styles.actionButton, { borderColor: Colors[colorScheme].textSecondary }]}>
-                                        <Ionicons name="checkmark-done" size={20} color={Colors[colorScheme].textSecondary} />
-                                        <Text style={[styles.actionButtonText, { color: Colors[colorScheme].textSecondary }]}>
-                                            {offer.status === 'CLOSED' ? t('manage.matchBooked') : t('manage.cancelled')}
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.closeButton]}
-                                        onPress={() => handleDeleteOffer(offer.id)}
-                                    >
-                                        <Ionicons name="trash-outline" size={20} color={Colors[colorScheme].error} />
-                                    </TouchableOpacity>
-                                </>
-                            )}
-                        </View>
-                    </View>
-                ))}
+                {/* List view */}
+                {viewMode === 'list' && (
+                    filteredOffers.length === 0 ? (
+                        <EmptyState
+                            icon={<Calendar size={24} color={c.primary} strokeWidth={2} />}
+                            title={t('manage.noOffers')}
+                            subtitle={t('manage.noOffersDesc')}
+                            style={{ marginTop: 20 }}
+                        />
+                    ) : (
+                        <>
+                            <Text style={styles.kicker}>{t('manage.yourMatches')}</Text>
+                            {filteredOffers.map(renderOfferRow)}
+                        </>
+                    )
+                )}
             </ScrollView>
 
             {/* Floating Action Button */}
@@ -768,355 +727,304 @@ export default function ManageScreen() {
                 onPress={() => router.push('/match/create')}
                 scaleTo={0.9}
             >
-                <Ionicons name="add" size={28} color="#fff" />
+                <Plus size={26} color={c.primaryInk} strokeWidth={2.5} />
             </AnimatedPressable>
         </SafeAreaView>
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: Colors[colorScheme].textSecondary,
-    },
+const getStyles = (colorScheme: 'light' | 'dark') => {
+    const c = Colors[colorScheme];
+    return StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: c.background,
+        },
+        scrollContent: {
+            padding: 20,
+            paddingBottom: 110,
+        },
 
-    // Enhanced empty state
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 32,
-    },
-    emptyIconWrap: {
-        width: 80,
-        height: 80,
-        borderRadius: 24,
-        backgroundColor: Colors[colorScheme].secondary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 8,
-    },
-    emptySubtitle: {
-        fontSize: 14,
-        color: Colors[colorScheme].textSecondary,
-        textAlign: 'center',
-        lineHeight: 20,
-        paddingHorizontal: 16,
-    },
+        // Header
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+        },
+        title: {
+            fontFamily: Fonts.display,
+            fontSize: 26,
+            fontWeight: '800',
+            letterSpacing: -0.8,
+            color: c.text,
+        },
 
-    // Scoreboard Card
-    scoreboardCard: {
-        borderRadius: 16,
-        overflow: 'hidden',
-        marginBottom: 20,
-        backgroundColor: Colors[colorScheme].card,
-        borderWidth: colorScheme === 'dark' ? 1 : 0,
-        borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'transparent',
-        shadowColor: colorScheme === 'dark' ? '#000' : 'rgba(27,139,78,0.12)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 12,
-        elevation: 4,
-    },
-    scoreboardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colorScheme === 'dark' ? '#0A1F12' : '#1A2E1A',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-    },
-    scoreboardTeamSide: {
-        flex: 1,
-    },
-    scoreboardTeamLabel: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.5)',
-        letterSpacing: 1.5,
-        marginBottom: 2,
-    },
-    scoreboardTeamName: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    scoreboardCenter: {
-        alignItems: 'center',
-        paddingHorizontal: 16,
-    },
-    scoreboardFormat: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: '#4ADE80',
-        letterSpacing: 1,
-    },
-    scoreboardAge: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.6)',
-        marginTop: 1,
-    },
-    scoreboardSlotCount: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#4ADE80',
-    },
-    scoreboardLED: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        gap: 6,
-    },
-    ledDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-    },
-    ledText: {
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 0.8,
-    },
-    ledRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    ledLocation: {
-        fontSize: 11,
-        color: Colors[colorScheme].textSecondary,
-        maxWidth: 140,
-    },
-    scoreboardBody: {
-        padding: 16,
-    },
-    scoreboardSlotsTitle: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 10,
-    },
-    slotRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    slotInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flex: 1,
-        minWidth: 120,
-    },
-    slotTime: {
-        fontSize: 14,
-        color: Colors[colorScheme].text,
-    },
-    slotStatusRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    slotStatusPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 10,
-    },
-    slotStatusText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    guestClub: {
-        fontSize: 13,
-        color: Colors[colorScheme].textSecondary,
-    },
-    resultBadge: {
-        backgroundColor: Colors[colorScheme].primary,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    resultText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    saveResultButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: Colors[colorScheme].primary,
-    },
-    saveResultText: {
-        color: Colors[colorScheme].primary,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    actionButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 16,
-        backgroundColor: Colors[colorScheme].secondary,
-        borderWidth: 1,
-        borderColor: Colors[colorScheme].primary,
-    },
-    actionButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors[colorScheme].primary,
-    },
-    closeButton: {
-        borderColor: Colors[colorScheme].error,
-        flex: 0,
-        paddingHorizontal: 12,
-    },
-    pendingButton: {
-        borderColor: Colors[colorScheme].warning,
-        backgroundColor: 'rgba(251,191,36,0.08)',
-    },
-    closeButtonText: {
-        color: Colors[colorScheme].error,
-    },
+        // Filter chips
+        filterScroll: {
+            marginBottom: 18,
+            marginHorizontal: -20,
+        },
+        filterRow: {
+            flexDirection: 'row',
+            gap: 8,
+            paddingHorizontal: 20,
+        },
 
-    // Header toggle
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        marginBottom: 20,
-    },
-    viewToggle: {
-        flexDirection: 'row',
-        backgroundColor: Colors[colorScheme].card,
-        borderRadius: 10,
-        padding: 3,
-        gap: 2,
-        borderWidth: 1,
-        borderColor: Colors[colorScheme].border,
-    },
-    toggleBtn: {
-        padding: 6,
-        borderRadius: 8,
-    },
-    toggleBtnActive: {
-        backgroundColor: Colors[colorScheme].primary,
-    },
+        // Micro-label / kicker
+        kicker: {
+            fontFamily: Fonts.body,
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: c.textMuted,
+            marginBottom: 10,
+            marginTop: 6,
+        },
 
-    // WhatsApp button
-    whatsappButton: {
-        flex: 0,
-        paddingHorizontal: 12,
-        borderColor: '#25D366',
-    },
+        // Offer row card
+        offerCard: {
+            backgroundColor: c.card,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: c.border,
+            padding: 14,
+            marginBottom: 12,
+        },
+        offerCardPast: {
+            opacity: 0.72,
+        },
+        offerTop: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+        },
+        offerTopInfo: {
+            flex: 1,
+            minWidth: 0,
+        },
+        offerTitle: {
+            fontFamily: Fonts.body,
+            fontSize: 14,
+            fontWeight: '700',
+            color: c.text,
+        },
+        offerMeta: {
+            fontFamily: Fonts.body,
+            fontSize: 11.5,
+            fontWeight: '500',
+            color: c.textMuted,
+            marginTop: 2,
+        },
 
-    // Calendar
-    calendarContainer: {
-        marginBottom: 16,
-    },
-    calDateSlots: {
-        marginTop: 12,
-        gap: 8,
-    },
-    calDateTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 4,
-    },
-    calSlotCard: {
-        padding: 12,
-    },
-    calSlotRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    calSlotTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 2,
-    },
-    calSlotTime: {
-        fontSize: 13,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 2,
-    },
-    calSlotLocation: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-    },
-    calSlotLocationText: {
-        fontSize: 12,
-        color: Colors[colorScheme].primary,
-        maxWidth: 180,
-    },
-    calNoSlots: {
-        textAlign: 'center',
-        color: Colors[colorScheme].textTertiary,
-        fontSize: 14,
-        marginTop: 16,
-    },
+        // Location
+        offerLocation: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+            marginTop: 12,
+        },
+        offerLocationText: {
+            flex: 1,
+            fontFamily: Fonts.body,
+            fontSize: 12,
+            fontWeight: '500',
+            color: c.primary,
+        },
 
-    // FAB
-    fab: {
-        position: 'absolute',
-        bottom: 90,
-        right: 20,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: Colors[colorScheme].primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: Colors[colorScheme].primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-});
+        // Slots list
+        slotList: {
+            marginTop: 8,
+            borderTopWidth: 1,
+            borderTopColor: c.dividerFine,
+        },
+        slotRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingVertical: 9,
+        },
+        slotTime: {
+            flex: 1,
+            fontFamily: Fonts.body,
+            fontSize: 13,
+            fontWeight: '500',
+            color: c.text,
+        },
+        slotResultCta: {
+            fontFamily: Fonts.body,
+            fontSize: 12,
+            fontWeight: '700',
+            color: c.primary,
+        },
+        resultBadge: {
+            backgroundColor: c.primaryTint,
+            paddingHorizontal: 9,
+            paddingVertical: 3,
+            borderRadius: 999,
+        },
+        resultText: {
+            fontFamily: Fonts.display,
+            fontSize: 13,
+            fontWeight: '800',
+            color: c.primary,
+        },
+
+        // Bottom line (pips + progress)
+        offerBottom: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: c.dividerFine,
+        },
+        progressLabel: {
+            flex: 1,
+            fontFamily: Fonts.body,
+            fontSize: 11.5,
+            fontWeight: '600',
+            color: c.textMuted,
+        },
+
+        // Actions
+        actions: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            marginTop: 12,
+        },
+        actionFlex: {
+            flex: 1,
+        },
+        actionBtn: {
+            height: 44,
+        },
+        iconAction: {
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: c.primary,
+        },
+        iconActionDanger: {
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: c.errorBorder,
+        },
+        iconActionDangerWide: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            height: 44,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: c.errorBorder,
+        },
+        deleteWideText: {
+            fontFamily: Fonts.body,
+            fontSize: 14,
+            fontWeight: '700',
+            color: c.error,
+        },
+        pendingNote: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            height: 44,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: c.warning,
+            backgroundColor: 'rgba(232,168,58,0.08)',
+            paddingHorizontal: 12,
+        },
+        pendingNoteText: {
+            fontFamily: Fonts.body,
+            fontSize: 13,
+            fontWeight: '600',
+            color: c.warningText,
+        },
+
+        // Agenda view
+        agenda: {
+            marginTop: 2,
+        },
+        agendaCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            backgroundColor: c.card,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: c.border,
+            padding: 14,
+            marginBottom: 12,
+        },
+        agendaInfo: {
+            flex: 1,
+            minWidth: 0,
+        },
+        agendaTitle: {
+            fontFamily: Fonts.body,
+            fontSize: 14,
+            fontWeight: '700',
+            color: c.text,
+        },
+        agendaTime: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '500',
+            color: c.textSecondary,
+            marginTop: 2,
+        },
+        agendaLocation: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            marginTop: 4,
+        },
+        agendaLocationText: {
+            flex: 1,
+            fontFamily: Fonts.body,
+            fontSize: 11.5,
+            fontWeight: '500',
+            color: c.primary,
+        },
+
+        // Empty state wrapper
+        emptyContainer: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+        },
+
+        // FAB
+        fab: {
+            position: 'absolute',
+            bottom: 90,
+            right: 20,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: c.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: c.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 12,
+            elevation: 6,
+        },
+    });
+};

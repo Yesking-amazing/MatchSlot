@@ -122,7 +122,15 @@
     "failedDelete": "Angebot konnte nicht gelöscht werden",
     "resultSaved": "Spielergebnis gespeichert!",
     "failedSaveResult": "Ergebnis konnte nicht gespeichert werden",
-    "noMatchesOnDay": "Keine Spiele an diesem Tag"
+    "noMatchesOnDay": "Keine Spiele an diesem Tag",
+    "agenda": "Agenda",
+    "list": "Liste",
+    "filterAll": "Alle",
+    "filterOpen": "Offen",
+    "filterPending": "Ausstehend",
+    "filterConfirmed": "Bestätigt",
+    "open": "Offen",
+    "yourMatches": "Deine Spiele"
   },
   "create": {
     "title": "Spielangebot erstellen",

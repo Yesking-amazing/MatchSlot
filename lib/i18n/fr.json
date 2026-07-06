@@ -122,7 +122,15 @@
     "failedDelete": "Echec de la suppression de l'offre",
     "resultSaved": "Resultat du match enregistre !",
     "failedSaveResult": "Echec de l'enregistrement du resultat",
-    "noMatchesOnDay": "Aucun match ce jour"
+    "noMatchesOnDay": "Aucun match ce jour",
+    "agenda": "Agenda",
+    "list": "Liste",
+    "filterAll": "Tous",
+    "filterOpen": "Ouverts",
+    "filterPending": "En attente",
+    "filterConfirmed": "Confirmés",
+    "open": "Ouvert",
+    "yourMatches": "Vos matchs"
   },
   "create": {
     "title": "Creer une offre de match",

@@ -1,99 +1,133 @@
 /**
- * MatchSlot Design System — Pitch Green
- * Stadium-inspired design: grass green, chalk white, floodlit night mode.
- * Feels like the pitch, not a SaaS dashboard.
+ * MatchSlot Design System — "Editorial Turf"
+ * Warm bone paper, deep-pine ink, a single lime accent, and a genuine
+ * "night match" dark mode. Premium comes from type, space and restraint —
+ * not stadium props. (Replaces the old literal "Pitch Green" system.)
+ *
+ * All hex values are authoritative per the Claude Design handoff.
  */
 
-const pitch = '#1B8B4E';        // Turf green — primary
-const pitchDark = '#157A42';    // Pressed / darker green
-const pitchLight = '#4ADE80';   // Bright green accent
-const chalk = '#F5F5EC';        // Chalk white / off-white
+// Brand constants (theme-independent)
+export const Brand = {
+  pine: '#15603D',      // primary (light)
+  pineDark: '#124E32',  // primary pressed (light)
+  emerald: '#35D98A',   // primary (dark)
+  emeraldInk: '#06231A',// ink on emerald
+  lime: '#C8F03F',      // accent (both modes)
+  limeInk: '#2B3A12',   // ink on lime
+  bone: '#F6F3EA',      // page paper (light)
+  night: '#0C130F',     // page (dark)
+};
 
 export const Colors = {
   light: {
-    // Backgrounds
-    text: '#1A2E1A',              // Deep forest
-    background: '#F7FAF5',        // Lightest green-tinted white
-    backgroundAlt: '#FFFFFF',     // Pure white for elevated surfaces
-    tint: pitch,
-    icon: '#5C7A5C',              // Muted green-grey
-    tabIconDefault: '#94A894',    // Faded sage
-    tabIconSelected: pitch,
-
-    // Brand
-    primary: pitch,
-    primaryDark: pitchDark,
-    primaryLight: '#E8F5E9',      // Very light green wash
-    secondary: 'rgba(27,139,78,0.08)',    // Translucent green
-    accent: pitchLight,                    // Bright green
-
     // Surfaces
+    text: '#16241B',              // ink primary
+    background: '#F6F3EA',        // bone / paper
+    backgroundAlt: '#FBF9F2',     // sunk / secondary surface
+    surfaceSunk: '#FBF9F2',
     card: '#FFFFFF',
-    cardBorder: '#D4E4D4',        // Light green border
     cardElevated: '#FFFFFF',
 
-    // Text
-    textSecondary: '#4A6B4A',     // Medium forest
-    textTertiary: '#8FA88F',      // Light sage
+    // Brand
+    tint: '#15603D',
+    primary: '#15603D',           // pine
+    primaryDark: '#124E32',       // pressed
+    primaryInk: '#F6F3EA',        // text/icons on primary fill
+    primaryTint: '#EEF3EA',       // pine wash fill
+    primaryLight: '#EEF3EA',      // legacy alias
+    secondary: '#EEF3EA',         // legacy alias (was translucent green)
+    accent: '#C8F03F',            // lime
+    accentInk: '#2B3A12',         // ink on lime
 
-    // Borders & Dividers
-    border: '#D4E4D4',            // Soft green
+    // Text ramp
+    textSecondary: '#4A5A4C',     // ink secondary
+    textMuted: '#6E7A6E',         // muted
+    textFaint: '#8A927F',         // faint / meta
+    textTertiary: '#A49D88',      // disabled / placeholder
+
+    // Borders & dividers
+    border: '#E7E1D3',            // card border
+    cardBorder: '#E7E1D3',        // legacy alias
+    divider: '#E0DAC9',           // inside cards / rows
+    dividerFine: '#EFEADD',       // hairline
+
+    // Icons / tabs
+    icon: '#6E7A6E',
+    tabIconDefault: '#A49D88',
+    tabIconSelected: '#15603D',
 
     // Status
-    success: '#16A34A',
-    warning: '#F59E0B',
-    error: '#EF4444',
+    success: '#35D98A',
+    warning: '#E8A83A',
+    warningText: '#B6801F',
+    error: '#C0554F',
+    errorBorder: '#E0B3B3',
 
-    // Glow / Shadows
-    glow: 'rgba(27, 139, 78, 0.15)',
-    shadow: 'rgba(26, 46, 26, 0.08)',
+    // Shadows (kept minimal — cards are flat/bordered)
+    glow: 'rgba(21,96,61,0.12)',
+    shadow: 'rgba(0,0,0,0.06)',
+    hairline: '#EFEADD',
 
-    // Pitch-specific
-    pitchLine: 'rgba(27, 139, 78, 0.12)',   // Subtle pitch line dividers
-    scoreboardBg: '#1A2E1A',                  // Dark scoreboard background
-    scoreboardText: '#FFFFFF',                 // Scoreboard white text
+    // Legacy aliases retired from the new system (kept so nothing crashes)
+    pitchLine: '#E0DAC9',
+    scoreboardBg: '#131E17',
+    scoreboardText: '#EAF1EA',
   },
   dark: {
-    // Backgrounds — "Night match" feel
-    text: '#E8F5E9',              // Light green-white
-    background: '#0A1F12',        // Deep pitch at night
-    backgroundAlt: '#122A1A',     // Slightly lighter green-black
-    tint: pitchLight,
-    icon: '#8FA88F',              // Sage
-    tabIconDefault: '#5C7A5C',    // Muted green
-    tabIconSelected: pitchLight,
+    // Surfaces — "night match"
+    text: '#EAF1EA',              // ink primary
+    background: '#0C130F',        // deep night
+    backgroundAlt: '#101A14',     // sunk / played row
+    surfaceSunk: '#101A14',
+    card: '#131E17',
+    cardElevated: '#22352A',      // raised (segmented active)
 
     // Brand
-    primary: pitchLight,
-    primaryDark: pitch,
-    primaryLight: 'rgba(74,222,128,0.1)',
-    secondary: 'rgba(74,222,128,0.12)',
-    accent: '#86EFAC',            // Lighter green
+    tint: '#35D98A',
+    primary: '#35D98A',           // emerald
+    primaryDark: '#2BB673',       // pressed
+    primaryInk: '#06231A',        // text/icons on primary fill
+    primaryTint: 'rgba(53,217,138,0.12)',
+    primaryLight: 'rgba(53,217,138,0.12)',
+    secondary: 'rgba(53,217,138,0.14)',
+    accent: '#C8F03F',            // lime
+    accentInk: '#2B3A12',
 
-    // Surfaces
-    card: '#122A1A',              // Dark green surface
-    cardBorder: '#1E3D28',        // Green-tinted border
-    cardElevated: '#1E3D28',
+    // Text ramp
+    textSecondary: '#B7C4B8',     // ink secondary
+    textMuted: '#8FA091',         // muted
+    textFaint: '#7F8A78',         // faint / meta
+    textTertiary: '#61705F',      // disabled
 
-    // Text
-    textSecondary: '#8FA88F',     // Sage
-    textTertiary: '#5C7A5C',      // Muted green
+    // Borders & dividers
+    border: 'rgba(255,255,255,0.08)',
+    cardBorder: 'rgba(255,255,255,0.08)',
+    divider: 'rgba(255,255,255,0.08)',
+    dividerFine: 'rgba(255,255,255,0.06)',
 
-    // Borders & Dividers
-    border: '#1E3D28',            // Dark green border
+    // Icons / tabs
+    icon: '#8FA091',
+    tabIconDefault: '#61705F',
+    tabIconSelected: '#35D98A',
 
     // Status
-    success: '#4ADE80',
-    warning: '#FBBF24',
-    error: '#F87171',
+    success: '#35D98A',
+    warning: '#E8A83A',
+    warningText: '#E8A83A',
+    error: '#E06E6E',
+    errorBorder: 'rgba(224,110,110,0.4)',
 
-    // Glow / Shadows
-    glow: 'rgba(74, 222, 128, 0.2)',
-    shadow: 'rgba(0, 0, 0, 0.5)',
+    // Shadows
+    glow: 'rgba(53,217,138,0.15)',
+    shadow: 'rgba(0,0,0,0.5)',
+    hairline: 'rgba(255,255,255,0.06)',
 
-    // Pitch-specific
-    pitchLine: 'rgba(74, 222, 128, 0.08)',
-    scoreboardBg: '#0A1F12',
-    scoreboardText: '#E8F5E9',
+    // Legacy aliases
+    pitchLine: 'rgba(255,255,255,0.08)',
+    scoreboardBg: '#0C130F',
+    scoreboardText: '#EAF1EA',
   },
 };
+
+export type ThemeColors = typeof Colors.light;

@@ -1,21 +1,26 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Crest } from '@/components/ui/Crest';
 import { Input } from '@/components/ui/Input';
+import { StatusChip, slotStatusKind } from '@/components/ui/StatusChip';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { addMatchToCalendar } from '@/lib/calendarUtils';
 import { scheduleMatchReminders } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { MatchOffer, Slot } from '@/types/database';
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { AlertCircle, ArrowLeft, Award, CalendarDays, CalendarPlus, CheckCircle, Clock, Hourglass, MapPin, Timer, User, XCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SlotDetailScreen() {
-    const colorScheme = useColorScheme() ?? 'light';
-    const styles = getStyles(colorScheme);
+    const scheme = useColorScheme() ?? 'light';
+    const c = Colors[scheme];
+    const styles = getStyles(scheme);
     const { t } = useTranslation();
     const { slotId } = useLocalSearchParams<{ slotId: string }>();
 
@@ -54,7 +59,6 @@ export default function SlotDetailScreen() {
             setSlot(slotData);
             setOffer(offerData);
 
-            // Populate form from existing data
             setHomeScore(slotData.home_score?.toString() ?? '');
             setAwayScore(slotData.away_score?.toString() ?? '');
             setResultNotes(slotData.result_notes ?? '');
@@ -98,23 +102,18 @@ export default function SlotDetailScreen() {
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit',
+            weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
         });
     };
-
-    const formatTime = (dateStr: string) => {
-        return new Date(dateStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    };
+    const formatTime = (dateStr: string) =>
+        new Date(dateStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const formatShortDate = (dateStr: string) =>
+        new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
 
     const isMatchPast = slot ? new Date(slot.end_time) < new Date() : false;
     const isUpcoming = slot ? new Date(slot.start_time) > new Date() : false;
     const canEdit = slot?.status === 'BOOKED';
 
-    // Auto-schedule local reminder when viewing an upcoming booked match (host side)
     useEffect(() => {
         if (slot?.status === 'BOOKED' && isUpcoming && offer) {
             const title = `${offer.age_group} ${offer.format} — ${slot.guest_club || 'Opponent'} vs ${offer.host_club || offer.host_name}`;
@@ -135,7 +134,7 @@ export default function SlotDetailScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
+                <ActivityIndicator size="large" color={c.primary} />
             </View>
         );
     }
@@ -143,162 +142,152 @@ export default function SlotDetailScreen() {
     if (!slot || !offer) {
         return (
             <View style={styles.center}>
-                <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
+                <AlertCircle size={56} color={c.error} strokeWidth={2} />
                 <Text style={styles.errorText}>{t('detail.slotNotFound')}</Text>
             </View>
         );
     }
 
-    const statusConfig: Record<string, { color: string; label: string; icon: string }> = {
-        OPEN: { color: Colors[colorScheme].success, label: t('detail.openForBooking'), icon: 'radio-button-on' },
-        HELD: { color: '#FFA500', label: t('manage.held'), icon: 'pause-circle' },
-        PENDING_APPROVAL: { color: Colors[colorScheme].warning, label: t('offer.pendingApproval'), icon: 'hourglass' },
-        BOOKED: { color: Colors[colorScheme].primary, label: t('manage.booked'), icon: 'checkmark-circle' },
-        REJECTED: { color: Colors[colorScheme].error, label: t('offer.notAvailable'), icon: 'close-circle' },
-    };
-    const status = statusConfig[slot.status] || { color: Colors[colorScheme].textSecondary, label: slot.status, icon: 'ellipse' };
+    const played = !!slot.result_saved_at;
+    const guestName = slot.guest_club || slot.guest_name;
 
     return (
-        <>
-            <Stack.Screen options={{
-                title: t('detail.title'),
-                headerBackTitle: t('common.back'),
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
-                headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors[colorScheme].background },
-                headerTintColor: Colors[colorScheme].text,
-            }} />
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <Stack.Screen options={{ headerShown: false }} />
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
-            >
+            {/* Header */}
+            <View style={styles.header}>
+                <Pressable style={styles.backCircle} onPress={() => router.back()} hitSlop={8}>
+                    <ArrowLeft size={18} color={c.text} strokeWidth={2} />
+                </Pressable>
+                <Text style={styles.headerTitle}>{t('detail.title')}</Text>
+                <View style={{ width: 34 }} />
+            </View>
+
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                    {/* Scoreboard Header */}
-                    <View style={styles.scoreboard}>
-                        <View style={styles.teamSide}>
-                            <Text style={styles.teamLabel}>{t('detail.host')}</Text>
-                            <Text style={styles.teamName} numberOfLines={1}>
-                                {offer.host_club || offer.host_name}
-                            </Text>
+                    {/* Fixture card */}
+                    <View style={styles.fixture}>
+                        <Text style={styles.fixtureKicker}>{offer.age_group} · {offer.format}</Text>
+                        <View style={styles.fixtureRow}>
+                            <View style={styles.fixtureTeam}>
+                                <Crest name={offer.host_club || offer.host_name} size={50} shape="circle" />
+                                <Text style={styles.fixtureTeamName} numberOfLines={1}>{offer.host_club || offer.host_name}</Text>
+                                <Text style={styles.fixtureSide}>{t('detail.host')}</Text>
+                            </View>
+
+                            <View style={styles.fixtureCenter}>
+                                {played ? (
+                                    <>
+                                        <View style={styles.scoreRowDisplay}>
+                                            <Text style={styles.scoreNum}>{slot.home_score ?? 0}</Text>
+                                            <Text style={styles.scoreDash}>–</Text>
+                                            <Text style={styles.scoreNum}>{slot.away_score ?? 0}</Text>
+                                        </View>
+                                        <Text style={styles.fixtureSub}>{t('detail.fullTime')}</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text style={styles.kickoff}>{formatTime(slot.start_time)}</Text>
+                                        <Text style={styles.fixtureSub}>{formatShortDate(slot.start_time)}</Text>
+                                    </>
+                                )}
+                            </View>
+
+                            <View style={styles.fixtureTeam}>
+                                <Crest name={guestName} size={50} shape="circle" muted={!guestName} />
+                                <Text style={styles.fixtureTeamName} numberOfLines={1}>{guestName || t('detail.tbd')}</Text>
+                                <Text style={styles.fixtureSide}>{t('detail.guest')}</Text>
+                            </View>
                         </View>
-                        <View style={styles.scoreCenter}>
-                            {slot.result_saved_at ? (
-                                <>
-                                    <Text style={styles.scoreDisplay}>
-                                        {slot.home_score ?? 0}  -  {slot.away_score ?? 0}
-                                    </Text>
-                                    <Text style={styles.scoreSubtext}>{t('detail.fullTime')}</Text>
-                                </>
-                            ) : (
-                                <>
-                                    <Text style={styles.formatDisplay}>{offer.format}</Text>
-                                    <Text style={styles.ageDisplay}>{offer.age_group}</Text>
-                                </>
-                            )}
-                        </View>
-                        <View style={[styles.teamSide, { alignItems: 'flex-end' }]}>
-                            <Text style={styles.teamLabel}>{t('detail.guest')}</Text>
-                            <Text style={styles.teamName} numberOfLines={1}>
-                                {slot.guest_club || t('detail.tbd')}
-                            </Text>
+
+                        <View style={styles.fixturePill}>
+                            <StatusChip kind={slotStatusKind(slot.status)} label={statusLabel(slot.status, t)} />
                         </View>
                     </View>
 
-                    {/* Status Strip */}
-                    <View style={[styles.statusStrip, { backgroundColor: status.color + '18' }]}>
-                        <View style={[styles.statusDot, { backgroundColor: status.color }]} />
-                        <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-                    </View>
-
-                    {/* Match Info */}
-                    <Card style={styles.infoCard}>
-                        <InfoRow icon="calendar-outline" label={t('detail.dateTime')} value={formatDateTime(slot.start_time)} colorScheme={colorScheme} />
-                        <InfoRow icon="time-outline" label={t('detail.kickoff')} value={`${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`} colorScheme={colorScheme} />
-                        <InfoRow icon="location-outline" label={t('detail.location')} value={offer.location} colorScheme={colorScheme} />
-                        <InfoRow icon="football-outline" label={t('detail.format')} value={`${offer.format} • ${offer.age_group}`} colorScheme={colorScheme} />
-                        <InfoRow icon="timer-outline" label={t('detail.duration')} value={`${offer.duration} ${t('common.minutes')}`} colorScheme={colorScheme} last />
+                    {/* Info list */}
+                    <Card radius={16} padding={4} style={{ marginTop: 4 }}>
+                        <InfoRow Icon={CalendarDays} label={t('detail.dateTime')} value={formatDateTime(slot.start_time)} scheme={scheme} first />
+                        <InfoRow Icon={Clock} label={t('detail.kickoff')} value={`${formatTime(slot.start_time)} – ${formatTime(slot.end_time)}`} scheme={scheme} />
+                        <InfoRow Icon={MapPin} label={t('detail.location')} value={offer.location} scheme={scheme} />
+                        <InfoRow Icon={Timer} label={t('detail.duration')} value={`${offer.duration} ${t('common.minutes')}`} scheme={scheme} />
+                        <InfoRow Icon={User} label={t('detail.host')} value={offer.host_club || offer.host_name} scheme={scheme} last />
                     </Card>
 
-                    {/* Add to Calendar */}
+                    {/* Add to calendar */}
                     {slot.status === 'BOOKED' && isUpcoming && (
                         <Button
                             title={t('calendar.addToCalendar')}
                             onPress={handleAddToCalendar}
                             variant="secondary"
+                            icon={<CalendarPlus size={16} color={c.primary} strokeWidth={2} />}
                             style={{ marginBottom: 4, marginTop: 8 }}
                         />
                     )}
 
-                    {/* Guest Team Info */}
+                    {/* Guest team info */}
                     {slot.guest_name && (
                         <>
-                            <Text style={styles.sectionTitle}>{t('detail.guestTeam')}</Text>
-                            <Card style={styles.infoCard}>
-                                <InfoRow icon="person-outline" label={t('detail.coach')} value={slot.guest_name} colorScheme={colorScheme} />
-                                <InfoRow icon="shield-outline" label={t('detail.club')} value={slot.guest_club || '-'} colorScheme={colorScheme} />
-                                <InfoRow icon="call-outline" label={t('detail.contact')} value={slot.guest_contact || '-'} colorScheme={colorScheme} />
-                                {slot.guest_notes && (
-                                    <InfoRow icon="document-text-outline" label={t('detail.notes')} value={slot.guest_notes} colorScheme={colorScheme} last />
-                                )}
-                                {!slot.guest_notes && <View />}
+                            <Text style={styles.kicker}>{t('detail.guestTeam')}</Text>
+                            <Card radius={16} padding={4}>
+                                <InfoRow Icon={User} label={t('detail.coach')} value={slot.guest_name} scheme={scheme} first />
+                                <InfoRow Icon={Award} label={t('detail.club')} value={slot.guest_club || '-'} scheme={scheme} />
+                                <InfoRow Icon={MapPin} label={t('detail.contact')} value={slot.guest_contact || '-'} scheme={scheme} last={!slot.guest_notes} />
+                                {slot.guest_notes ? <InfoRow Icon={AlertCircle} label={t('detail.notes')} value={slot.guest_notes} scheme={scheme} last /> : null}
                             </Card>
                         </>
                     )}
 
-                    {/* Result Form */}
+                    {/* Result record / form */}
                     {canEdit && (
                         <>
-                            <Text style={styles.sectionTitle}>
-                                {slot.result_saved_at ? t('detail.editResult') : isMatchPast ? t('detail.addResult') : t('detail.matchResult')}
+                            <Text style={styles.kicker}>
+                                {played ? t('detail.editResult') : isMatchPast ? t('detail.addResult') : t('detail.matchResult')}
                             </Text>
 
-                            {!isMatchPast && !slot.result_saved_at && (
+                            {!isMatchPast && !played && (
                                 <View style={styles.infoBanner}>
-                                    <Ionicons name="information-circle-outline" size={20} color={Colors[colorScheme].warning} />
-                                    <Text style={styles.infoBannerText}>
-                                        {t('detail.notStarted')}
-                                    </Text>
+                                    <Hourglass size={16} color={c.warningText} strokeWidth={2} />
+                                    <Text style={styles.infoBannerText}>{t('detail.notStarted')}</Text>
                                 </View>
                             )}
 
-                            <Card style={styles.resultCard}>
-                                {/* Score Inputs */}
+                            <Card radius={16} padding={18} style={{ marginBottom: 16 }}>
                                 <View style={styles.scoreRow}>
                                     <View style={styles.scoreInput}>
-                                        <Text style={styles.scoreLabel}>{t('common.home')}</Text>
+                                        <Text style={styles.scoreFieldLabel}>{t('common.home')}</Text>
                                         <TextInput
                                             style={styles.scoreField}
                                             value={homeScore}
                                             onChangeText={setHomeScore}
                                             keyboardType="number-pad"
                                             placeholder="0"
-                                            placeholderTextColor={Colors[colorScheme].textTertiary}
+                                            placeholderTextColor={c.textTertiary}
                                             maxLength={2}
                                         />
                                     </View>
-                                    <Text style={styles.scoreSeparator}>-</Text>
+                                    <Text style={styles.scoreSeparator}>–</Text>
                                     <View style={styles.scoreInput}>
-                                        <Text style={styles.scoreLabel}>{t('common.away')}</Text>
+                                        <Text style={styles.scoreFieldLabel}>{t('common.away')}</Text>
                                         <TextInput
                                             style={styles.scoreField}
                                             value={awayScore}
                                             onChangeText={setAwayScore}
                                             keyboardType="number-pad"
                                             placeholder="0"
-                                            placeholderTextColor={Colors[colorScheme].textTertiary}
+                                            placeholderTextColor={c.textTertiary}
                                             maxLength={2}
                                         />
                                     </View>
                                 </View>
 
-                                {/* Extra Result Fields */}
                                 <Input
                                     label={t('detail.manOfMatch')}
                                     placeholder={t('detail.playerName')}
                                     value={manOfMatch}
                                     onChangeText={setManOfMatch}
-                                    icon="trophy-outline"
+                                    icon={<Award size={16} color={c.accent} strokeWidth={2} />}
                                 />
 
                                 <Input
@@ -306,34 +295,26 @@ export default function SlotDetailScreen() {
                                     placeholder={t('detail.goalScorersPlaceholder')}
                                     value={goalScorers}
                                     onChangeText={setGoalScorers}
-                                    icon="football-outline"
+                                    icon={<CheckCircle size={16} color={c.success} strokeWidth={2} />}
                                     multiline
                                     numberOfLines={2}
                                 />
 
-                                <View style={styles.notesWrapper}>
-                                    <Text style={styles.notesLabel}>{t('detail.matchNotes')}</Text>
-                                    <TextInput
-                                        style={styles.notesInput}
-                                        value={resultNotes}
-                                        onChangeText={setResultNotes}
-                                        placeholder={t('detail.matchNotesPlaceholder')}
-                                        placeholderTextColor={Colors[colorScheme].textTertiary}
-                                        multiline
-                                        numberOfLines={3}
-                                    />
-                                </View>
-
-                                <Button
-                                    title={t('detail.saveResult')}
-                                    onPress={handleSave}
-                                    loading={saving}
+                                <Input
+                                    label={t('detail.matchNotes')}
+                                    placeholder={t('detail.matchNotesPlaceholder')}
+                                    value={resultNotes}
+                                    onChangeText={setResultNotes}
+                                    multiline
+                                    numberOfLines={3}
                                 />
 
-                                {slot.result_saved_at && (
+                                <Button title={t('detail.saveResult')} onPress={handleSave} loading={saving} />
+
+                                {played && (
                                     <Text style={styles.lastSaved}>
-                                        {t('detail.lastSaved')}: {new Date(slot.result_saved_at).toLocaleDateString('en-GB', {
-                                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                                        {t('detail.lastSaved')}: {new Date(slot.result_saved_at!).toLocaleDateString('en-GB', {
+                                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                                         })}
                                     </Text>
                                 )}
@@ -341,270 +322,125 @@ export default function SlotDetailScreen() {
                         </>
                     )}
 
-                    {/* Status messages for non-booked slots */}
+                    {/* Non-booked status messages */}
                     {slot.status === 'OPEN' && (
-                        <Card style={styles.messageCard}>
-                            <Ionicons name="hourglass-outline" size={32} color={Colors[colorScheme].primary} />
+                        <Card radius={16} padding={28} style={styles.messageCard}>
+                            <Hourglass size={30} color={c.primary} strokeWidth={2} />
                             <Text style={styles.messageTitle}>{t('detail.awaitingBooking')}</Text>
                             <Text style={styles.messageSubtext}>{t('detail.awaitingBookingDesc')}</Text>
                         </Card>
                     )}
                     {slot.status === 'REJECTED' && (
-                        <Card style={styles.messageCard}>
-                            <Ionicons name="close-circle-outline" size={32} color={Colors[colorScheme].error} />
+                        <Card radius={16} padding={28} style={styles.messageCard}>
+                            <XCircle size={30} color={c.error} strokeWidth={2} />
                             <Text style={styles.messageTitle}>{t('detail.slotRejected')}</Text>
                             <Text style={styles.messageSubtext}>{t('detail.slotRejectedDesc')}</Text>
                         </Card>
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
-        </>
+        </SafeAreaView>
     );
 }
 
-function InfoRow({ icon, label, value, colorScheme, last }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-    colorScheme: 'light' | 'dark';
-    last?: boolean;
+function statusLabel(status: string, t: any): string {
+    switch (status) {
+        case 'OPEN': return t('detail.openForBooking');
+        case 'HELD': return t('manage.held');
+        case 'PENDING_APPROVAL': return t('offer.pendingApproval');
+        case 'BOOKED': return t('manage.booked');
+        case 'REJECTED': return t('offer.notAvailable');
+        default: return status;
+    }
+}
+
+function InfoRow({ Icon, label, value, scheme, first, last }: {
+    Icon: any; label: string; value: string; scheme: 'light' | 'dark'; first?: boolean; last?: boolean;
 }) {
+    const c = Colors[scheme];
     return (
         <View style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 12,
-            paddingVertical: 10,
-            borderBottomWidth: last ? 0 : 1,
-            borderBottomColor: Colors[colorScheme].border,
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            paddingVertical: 12, paddingHorizontal: 14,
+            borderTopWidth: first ? 0 : 1, borderTopColor: c.divider,
         }}>
-            <Ionicons name={icon} size={20} color={Colors[colorScheme].primary} style={{ marginTop: 2 }} />
-            <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: Colors[colorScheme].textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                    {label}
-                </Text>
-                <Text style={{ fontSize: 15, fontWeight: '500', color: Colors[colorScheme].text }}>
-                    {value}
-                </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Icon size={16} color={c.textMuted} strokeWidth={2} />
+                <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '500', color: c.textMuted }}>{label}</Text>
             </View>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 13.5, fontWeight: '700', color: c.text, flexShrink: 1, textAlign: 'right', marginLeft: 12 }} numberOfLines={2}>
+                {value}
+            </Text>
         </View>
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-    },
-    center: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    errorText: {
-        fontSize: 16,
-        color: Colors[colorScheme].error,
-        marginTop: 12,
-    },
-    scroll: {
-        padding: 20,
-        paddingBottom: 40,
-    },
+const getStyles = (scheme: 'light' | 'dark') => {
+    const c = Colors[scheme];
+    return StyleSheet.create({
+        container: { flex: 1, backgroundColor: c.background },
+        center: { flex: 1, backgroundColor: c.background, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 12 },
+        errorText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '600', color: c.error },
 
-    // Scoreboard header
-    scoreboard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colorScheme === 'dark' ? '#0A1F12' : '#1A2E1A',
-        paddingHorizontal: 20,
-        paddingVertical: 20,
-        borderRadius: 16,
-    },
-    teamSide: {
-        flex: 1,
-    },
-    teamLabel: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.5)',
-        letterSpacing: 1.5,
-        marginBottom: 4,
-    },
-    teamName: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    scoreCenter: {
-        alignItems: 'center',
-        paddingHorizontal: 16,
-    },
-    scoreDisplay: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#4ADE80',
-        letterSpacing: 2,
-    },
-    scoreSubtext: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.5)',
-        letterSpacing: 1.5,
-        marginTop: 2,
-    },
-    formatDisplay: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: '#4ADE80',
-        letterSpacing: 1,
-    },
-    ageDisplay: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.6)',
-        marginTop: 2,
-    },
+        header: {
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            paddingHorizontal: 20, paddingVertical: 10,
+        },
+        backCircle: {
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
+            alignItems: 'center', justifyContent: 'center',
+        },
+        headerTitle: { fontFamily: Fonts.display, fontWeight: '800', fontSize: 18, letterSpacing: -0.4, color: c.text },
 
-    // Status strip
-    statusStrip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        marginTop: 8,
-        gap: 8,
-    },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    statusText: {
-        fontSize: 13,
-        fontWeight: '700',
-        letterSpacing: 0.3,
-    },
+        scroll: { paddingHorizontal: 20, paddingBottom: 40 },
 
-    // Info card
-    infoCard: {
-        padding: 16,
-        marginBottom: 4,
-    },
+        // Fixture card
+        fixture: {
+            backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
+            borderRadius: 20, paddingVertical: 22, paddingHorizontal: 18, marginBottom: 12,
+        },
+        fixtureKicker: {
+            fontFamily: Fonts.body, fontSize: 11, fontWeight: '700', letterSpacing: 1.5,
+            textTransform: 'uppercase', color: c.textMuted, textAlign: 'center', marginBottom: 18,
+        },
+        fixtureRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+        fixtureTeam: { flex: 1, alignItems: 'center', gap: 8 },
+        fixtureTeamName: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '700', color: c.text, textAlign: 'center' },
+        fixtureSide: { fontFamily: Fonts.body, fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: c.textFaint },
+        fixtureCenter: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, minWidth: 96, paddingTop: 6 },
+        kickoff: { fontFamily: Fonts.display, fontWeight: '800', fontSize: 30, letterSpacing: -1, color: c.text },
+        fixtureSub: { fontFamily: Fonts.body, fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: c.textFaint, marginTop: 3 },
+        scoreRowDisplay: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+        scoreNum: { fontFamily: Fonts.display, fontWeight: '800', fontSize: 38, letterSpacing: -1, color: c.text },
+        scoreDash: { fontFamily: Fonts.display, fontWeight: '800', fontSize: 30, color: scheme === 'dark' ? c.accent : c.accent },
+        fixturePill: { alignItems: 'center', marginTop: 18 },
 
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginTop: 16,
-        marginBottom: 8,
-    },
+        kicker: {
+            fontFamily: Fonts.body, fontSize: 11, fontWeight: '700', letterSpacing: 1.5,
+            textTransform: 'uppercase', color: c.textMuted, marginTop: 18, marginBottom: 10,
+        },
 
-    // Result form
-    resultCard: {
-        padding: 20,
-        marginBottom: 16,
-    },
-    scoreRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        marginBottom: 24,
-    },
-    scoreInput: {
-        alignItems: 'center',
-    },
-    scoreLabel: {
-        fontSize: 14,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 8,
-        fontWeight: '500',
-    },
-    scoreField: {
-        width: 80,
-        height: 60,
-        fontSize: 32,
-        fontWeight: '700',
-        textAlign: 'center',
-        color: Colors[colorScheme].text,
-        borderWidth: 1,
-        borderColor: Colors[colorScheme].border,
-        borderRadius: 16,
-        backgroundColor: Colors[colorScheme].card,
-    },
-    scoreSeparator: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginTop: 24,
-    },
-    notesWrapper: {
-        marginBottom: 16,
-    },
-    notesLabel: {
-        fontSize: 13,
-        fontWeight: '500',
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 8,
-        letterSpacing: 0.3,
-    },
-    notesInput: {
-        borderWidth: 1,
-        borderColor: Colors[colorScheme].border,
-        borderRadius: 16,
-        padding: 12,
-        fontSize: 16,
-        color: Colors[colorScheme].text,
-        minHeight: 80,
-        textAlignVertical: 'top',
-        backgroundColor: Colors[colorScheme].card,
-    },
-    lastSaved: {
-        fontSize: 12,
-        color: Colors[colorScheme].textTertiary,
-        textAlign: 'center',
-        marginTop: 12,
-    },
+        // Result form
+        scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 20 },
+        scoreInput: { alignItems: 'center', gap: 8 },
+        scoreFieldLabel: { fontFamily: Fonts.body, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: c.textMuted },
+        scoreField: {
+            width: 76, height: 68, fontFamily: Fonts.display, fontSize: 34, fontWeight: '800', textAlign: 'center',
+            color: c.text, borderWidth: 1, borderColor: c.divider, borderRadius: 14, backgroundColor: c.surfaceSunk,
+        },
+        scoreSeparator: { fontFamily: Fonts.display, fontSize: 28, fontWeight: '800', color: c.textFaint, marginTop: 20 },
+        lastSaved: { fontFamily: Fonts.body, fontSize: 12, color: c.textFaint, textAlign: 'center', marginTop: 12 },
 
-    // Info banner
-    infoBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        backgroundColor: 'rgba(251,191,36,0.08)',
-        borderColor: 'rgba(251,191,36,0.3)',
-        borderWidth: 1,
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 12,
-    },
-    infoBannerText: {
-        flex: 1,
-        fontSize: 13,
-        color: Colors[colorScheme].text,
-        lineHeight: 18,
-    },
+        infoBanner: {
+            flexDirection: 'row', alignItems: 'center', gap: 10,
+            backgroundColor: 'rgba(232,168,58,0.12)', borderColor: 'rgba(232,168,58,0.3)',
+            borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12,
+        },
+        infoBannerText: { flex: 1, fontFamily: Fonts.body, fontSize: 12.5, color: c.text, lineHeight: 17 },
 
-    // Message cards
-    messageCard: {
-        padding: 32,
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 16,
-    },
-    messageTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-    },
-    messageSubtext: {
-        fontSize: 13,
-        color: Colors[colorScheme].textSecondary,
-        textAlign: 'center',
-        lineHeight: 18,
-    },
-});
+        messageCard: { alignItems: 'center', gap: 8, marginTop: 8 },
+        messageTitle: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '700', color: c.text, marginTop: 4 },
+        messageSubtext: { fontFamily: Fonts.body, fontSize: 12.5, color: c.textMuted, textAlign: 'center', lineHeight: 18 },
+    });
+};

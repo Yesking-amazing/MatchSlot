@@ -122,7 +122,15 @@
     "failedDelete": "Failed to delete offer",
     "resultSaved": "Match result saved!",
     "failedSaveResult": "Failed to save result",
-    "noMatchesOnDay": "No matches on this day"
+    "noMatchesOnDay": "No matches on this day",
+    "agenda": "Agenda",
+    "list": "List",
+    "filterAll": "All",
+    "filterOpen": "Open",
+    "filterPending": "Pending",
+    "filterConfirmed": "Confirmed",
+    "open": "Open",
+    "yourMatches": "Your Matches"
   },
   "create": {
     "title": "Create Match Offer",
@@ -298,7 +306,7 @@
     "languageSystem": "System Default",
     "languageEnglish": "English",
     "languageGerman": "Deutsch",
-    "languageFrench": "Fran\u00e7ais",
+    "languageFrench": "Français",
     "languageItalian": "Italiano",
     "selectLanguage": "Select Language"
   },

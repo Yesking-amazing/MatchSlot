@@ -1,36 +1,37 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
+import { PickerGroup, PickerRow } from '@/components/ui/PickerRow';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateApprovalLink } from '@/lib/shareLink';
 import { supabase } from '@/lib/supabase';
 import { AgeGroup, MatchFormat } from '@/types/database';
-import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as MailComposer from 'expo-mail-composer';
 import { Stack, router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+    ArrowLeft,
+    Building2,
+    CalendarPlus,
+    Check,
+    Clock,
+    Mail,
+    MapPin,
+    Plus,
+    Send,
+    Trash2,
+    User,
+    X,
+} from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
-// Helper for the selection rows
-function SelectionRow({ icon, label, rightElement, onPress }: any) {
-    const colorScheme = useColorScheme() ?? 'light';
-    const styles = getStyles(colorScheme);
-    return (
-        <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-            <View style={styles.selectionRow}>
-                <View style={styles.selectionLeft}>
-                    <Ionicons name={icon} size={24} color={Colors[colorScheme].text} style={styles.selectionIcon} />
-                    <Text style={styles.selectionLabel}>{label}</Text>
-                </View>
-                {rightElement}
-            </View>
-        </TouchableOpacity>
-    );
-}
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface TimeSlot {
     id: string;
@@ -41,6 +42,7 @@ interface TimeSlot {
 
 export default function CreateMatchScreen() {
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const styles = getStyles(colorScheme);
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -260,91 +262,85 @@ export default function CreateMatchScreen() {
     };
 
     const formatTimeSlot = (slot: TimeSlot) => {
-        const dateStr = slot.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const dateStr = slot.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
         const startStr = slot.startTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        const endStr = slot.endTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        return `${dateStr} • ${startStr} - ${endStr}`;
+        return `${dateStr} · ${startStr}`;
     };
 
     return (
         <>
-            <Stack.Screen options={{
-                title: t('create.title'),
-                headerBackTitle: t('common.back'),
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
-                headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors[colorScheme].background },
-                headerTintColor: Colors[colorScheme].text,
-            }} />
+            <Stack.Screen options={{ headerShown: false }} />
 
-            <KeyboardAvoidingView
-                style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-            >
-                <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <SafeAreaView style={styles.safe} edges={['top']}>
+                <KeyboardAvoidingView
+                    style={styles.container}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                >
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <Pressable
+                            onPress={() => router.back()}
+                            style={({ pressed }) => [
+                                styles.backCircle,
+                                pressed && { backgroundColor: c.primaryTint },
+                            ]}
+                            hitSlop={8}
+                        >
+                            <ArrowLeft size={18} color={c.text} strokeWidth={2} />
+                        </Pressable>
+                        <Text style={styles.headerTitle}>{t('create.title')}</Text>
+                    </View>
 
-                    {/* Host Information */}
-                    <Text style={styles.sectionHeader}>{t('create.yourDetails')}</Text>
-                    <Input
-                        placeholder={t('create.yourName')}
-                        value={hostName}
-                        onChangeText={setHostName}
-                    />
-                    <Input
-                        placeholder={t('create.yourClub')}
-                        value={hostClub}
-                        onChangeText={setHostClub}
-                    />
-                    <Input
-                        placeholder={t('create.contact')}
-                        value={hostContact}
-                        onChangeText={setHostContact}
-                    />
+                    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-                    {/* Match Details */}
-                    <Text style={styles.sectionHeader}>{t('create.matchDetails')}</Text>
-                    <View style={styles.section}>
-                        {/* Age Group */}
-                        <Card style={styles.rowCard}>
-                            <SelectionRow
-                                icon="people-outline"
-                                label={`${t('create.ageGroup')}: ${ageGroup}`}
-                                rightElement={
-                                    <Ionicons name="chevron-forward" size={20} color={Colors[colorScheme].textSecondary} />
-                                }
+                        {/* Host Information */}
+                        <Text style={styles.kicker}>{t('create.yourDetails')}</Text>
+                        <Input
+                            placeholder={t('create.yourName')}
+                            value={hostName}
+                            onChangeText={setHostName}
+                            icon={<User size={17} color={c.textFaint} strokeWidth={2} />}
+                        />
+                        <Input
+                            placeholder={t('create.yourClub')}
+                            value={hostClub}
+                            onChangeText={setHostClub}
+                            icon={<Building2 size={17} color={c.textFaint} strokeWidth={2} />}
+                        />
+                        <Input
+                            placeholder={t('create.contact')}
+                            value={hostContact}
+                            onChangeText={setHostContact}
+                            icon={<Mail size={17} color={c.textFaint} strokeWidth={2} />}
+                        />
+
+                        {/* Match Details */}
+                        <Text style={[styles.kicker, styles.kickerSpaced]}>{t('create.matchDetails')}</Text>
+                        <PickerGroup style={styles.pickerGroup}>
+                            <PickerRow
+                                first
+                                label={t('create.ageGroup')}
+                                value={ageGroup}
                                 onPress={() => setShowAgeGroupPicker(true)}
                             />
-                        </Card>
-
-                        {/* Format */}
-                        <Card style={styles.rowCard}>
-                            <SelectionRow
-                                icon="football-outline"
-                                label={`${t('create.format')}: ${format}`}
-                                rightElement={
-                                    <Ionicons name="chevron-forward" size={20} color={Colors[colorScheme].textSecondary} />
-                                }
+                            <PickerRow
+                                label={t('create.format')}
+                                value={format}
                                 onPress={() => setShowFormatPicker(true)}
                             />
-                        </Card>
-
-                        {/* Duration */}
-                        <Card style={styles.rowCard}>
-                            <SelectionRow
-                                icon="timer-outline"
-                                label={`${t('create.duration')}: ${duration} ${t('common.minutes')}`}
-                                rightElement={
-                                    <Ionicons name="chevron-forward" size={20} color={Colors[colorScheme].textSecondary} />
-                                }
+                            <PickerRow
+                                label={t('create.duration')}
+                                value={`${duration} ${t('common.minutes')}`}
                                 onPress={() => setShowDurationPicker(true)}
                             />
-                        </Card>
+                        </PickerGroup>
 
                         <Input
                             placeholder={t('create.location')}
                             value={location}
                             onChangeText={setLocation}
+                            icon={<MapPin size={17} color={c.textFaint} strokeWidth={2} />}
                         />
 
                         {/* Approver Email */}
@@ -354,6 +350,7 @@ export default function CreateMatchScreen() {
                             onChangeText={setApproverEmail}
                             keyboardType="email-address"
                             autoCapitalize="none"
+                            icon={<Mail size={17} color={c.textFaint} strokeWidth={2} />}
                         />
 
                         {/* Notes */}
@@ -363,47 +360,58 @@ export default function CreateMatchScreen() {
                             onChangeText={setNotes}
                             multiline
                         />
-                    </View>
 
-                    {/* Time Slots */}
-                    <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionHeader}>{t('create.availableSlots')}</Text>
-                        <TouchableOpacity onPress={addTimeSlot}>
-                            <Ionicons name="add-circle" size={28} color={Colors[colorScheme].primary} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {timeSlots.length === 0 ? (
-                        <View style={styles.emptyBoard}>
-                            <View style={styles.emptyBoardInner}>
-                                <View style={styles.emptyBoardLine} />
-                                <View style={styles.emptyBoardLine} />
-                                <View style={styles.emptyBoardLine} />
-                            </View>
-                            <Text style={styles.emptyText}>{t('create.noSlots')}</Text>
-                            <Text style={styles.emptySubtext}>{t('create.tapToAdd')}</Text>
+                        {/* Time Slots */}
+                        <View style={styles.slotsHeaderRow}>
+                            <Text style={styles.kicker}>{t('create.availableSlots')}</Text>
+                            <TouchableOpacity onPress={addTimeSlot} style={styles.addAffordance} activeOpacity={0.7}>
+                                <Plus size={16} color={c.primary} strokeWidth={2.4} />
+                                <Text style={styles.addAffordanceText}>{t('create.addSlot')}</Text>
+                            </TouchableOpacity>
                         </View>
-                    ) : (
-                        timeSlots.map((slot, index) => (
-                            <View key={slot.id} style={styles.slotPin}>
-                                <View style={styles.slotPinDot} />
-                                <View style={styles.slotPinContent}>
-                                    <Text style={styles.slotPinNumber}>#{index + 1}</Text>
-                                    <Text style={styles.slotPinText}>{formatTimeSlot(slot)}</Text>
-                                </View>
-                                <TouchableOpacity onPress={() => removeTimeSlot(slot.id)} style={styles.slotPinDelete}>
-                                    <Ionicons name="close-circle" size={22} color={Colors[colorScheme].error} />
-                                </TouchableOpacity>
+
+                        {timeSlots.length === 0 ? (
+                            <EmptyState
+                                icon={<CalendarPlus size={24} color={c.primary} strokeWidth={2} />}
+                                title={t('create.noSlots')}
+                                subtitle={t('create.tapToAdd')}
+                            />
+                        ) : (
+                            <View style={styles.slotList}>
+                                {timeSlots.map((slot, index) => (
+                                    <View key={slot.id} style={styles.slotRow}>
+                                        <View style={styles.slotNumber}>
+                                            <Text style={styles.slotNumberText}>{index + 1}</Text>
+                                        </View>
+                                        <Text style={styles.slotText} numberOfLines={1}>{formatTimeSlot(slot)}</Text>
+                                        <TouchableOpacity onPress={() => removeTimeSlot(slot.id)} style={styles.slotDelete} hitSlop={8}>
+                                            <Trash2 size={17} color={c.textFaint} strokeWidth={2} />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
                             </View>
-                        ))
-                    )}
+                        )}
 
-                </ScrollView>
+                    </ScrollView>
 
-                <View style={styles.footer}>
-                    <Button title={t('create.title')} onPress={handleCreate} loading={loading} />
-                </View>
-            </KeyboardAvoidingView>
+                    {/* Sticky CTA over bottom fade */}
+                    <View style={styles.footer} pointerEvents="box-none">
+                        <LinearGradient
+                            colors={[`${c.background}00`, c.background]}
+                            style={styles.footerFade}
+                            pointerEvents="none"
+                        />
+                        <View style={styles.footerInner}>
+                            <Button
+                                title={t('create.title')}
+                                onPress={handleCreate}
+                                loading={loading}
+                                icon={<Send size={16} color={c.primaryInk} strokeWidth={2} />}
+                            />
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
 
             {/* Age Group Picker Modal */}
             <Modal visible={showAgeGroupPicker} transparent animationType="slide">
@@ -412,98 +420,59 @@ export default function CreateMatchScreen() {
                     activeOpacity={1}
                     onPress={() => setShowAgeGroupPicker(false)}
                 >
-                    <View style={styles.modalContent}>
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalGrabber} />
                         <Text style={styles.modalTitle}>{t('create.selectAgeGroup')}</Text>
-                        {ageGroups.map(ag => (
-                            <TouchableOpacity
-                                key={ag}
-                                style={styles.modalOption}
-                                onPress={() => {
-                                    setAgeGroup(ag);
-                                    setShowAgeGroupPicker(false);
-                                }}
-                            >
-                                <Text style={[styles.modalOptionText, ageGroup === ag && styles.modalOptionTextSelected]}>
-                                    {ag}
-                                </Text>
-                                {ageGroup === ag && <Ionicons name="checkmark" size={24} color={Colors[colorScheme].primary} />}
-                            </TouchableOpacity>
-                        ))}
+                        {ageGroups.map(ag => {
+                            const selected = ageGroup === ag;
+                            return (
+                                <TouchableOpacity
+                                    key={ag}
+                                    style={styles.modalOption}
+                                    onPress={() => {
+                                        setAgeGroup(ag);
+                                        setShowAgeGroupPicker(false);
+                                    }}
+                                >
+                                    <Text style={[styles.modalOptionText, selected && styles.modalOptionTextSelected]}>
+                                        {ag}
+                                    </Text>
+                                    {selected && <Check size={20} color={c.primary} strokeWidth={2.4} />}
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
                 </TouchableOpacity>
             </Modal>
 
-            {/* Format Picker Modal — Tactical Board */}
+            {/* Format Picker Modal */}
             <Modal visible={showFormatPicker} transparent animationType="slide">
                 <TouchableOpacity
                     style={styles.modalOverlay}
                     activeOpacity={1}
                     onPress={() => setShowFormatPicker(false)}
                 >
-                    <View style={styles.modalContent}>
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalGrabber} />
                         <Text style={styles.modalTitle}>{t('create.selectFormat')}</Text>
-                        <Text style={styles.tacticalSubtitle}>Choose your pitch size</Text>
-                        <View style={styles.tacticalGrid}>
-                            {formats.map(f => {
-                                const isSelected = format === f;
-                                const playerCount = parseInt(f.split('v')[0]);
-                                return (
-                                    <TouchableOpacity
-                                        key={f}
-                                        style={[styles.tacticalCard, isSelected && styles.tacticalCardSelected]}
-                                        onPress={() => {
-                                            setFormat(f);
-                                            setShowFormatPicker(false);
-                                        }}
-                                        activeOpacity={0.7}
-                                    >
-                                        {/* Mini Pitch */}
-                                        <View style={[styles.miniPitch, isSelected && styles.miniPitchSelected]}>
-                                            {/* Center line */}
-                                            <View style={styles.pitchCenterLine} />
-                                            {/* Center circle */}
-                                            <View style={styles.pitchCenterCircle} />
-                                            {/* Player dots - left side */}
-                                            {Array.from({ length: Math.min(playerCount, 6) }).map((_, i) => (
-                                                <View
-                                                    key={`l${i}`}
-                                                    style={[
-                                                        styles.playerDot,
-                                                        styles.playerDotHome,
-                                                        {
-                                                            top: `${15 + (i * (70 / Math.min(playerCount, 6)))}%`,
-                                                            left: `${15 + (i % 2) * 15}%`,
-                                                        },
-                                                    ]}
-                                                />
-                                            ))}
-                                            {/* Player dots - right side */}
-                                            {Array.from({ length: Math.min(playerCount, 6) }).map((_, i) => (
-                                                <View
-                                                    key={`r${i}`}
-                                                    style={[
-                                                        styles.playerDot,
-                                                        styles.playerDotAway,
-                                                        {
-                                                            top: `${15 + (i * (70 / Math.min(playerCount, 6)))}%`,
-                                                            right: `${15 + (i % 2) * 15}%`,
-                                                        },
-                                                    ]}
-                                                />
-                                            ))}
-                                        </View>
-                                        <Text style={[styles.tacticalLabel, isSelected && styles.tacticalLabelSelected]}>
-                                            {f}
-                                        </Text>
-                                        {isSelected && (
-                                            <View style={styles.tacticalCheck}>
-                                                <Ionicons name="checkmark-circle" size={18} color={Colors[colorScheme].primary} />
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                        {formats.map(f => {
+                            const selected = format === f;
+                            return (
+                                <TouchableOpacity
+                                    key={f}
+                                    style={styles.modalOption}
+                                    onPress={() => {
+                                        setFormat(f);
+                                        setShowFormatPicker(false);
+                                    }}
+                                >
+                                    <Text style={[styles.modalOptionText, selected && styles.modalOptionTextSelected]}>
+                                        {f}
+                                    </Text>
+                                    {selected && <Check size={20} color={c.primary} strokeWidth={2.4} />}
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
                 </TouchableOpacity>
             </Modal>
@@ -515,23 +484,27 @@ export default function CreateMatchScreen() {
                     activeOpacity={1}
                     onPress={() => setShowDurationPicker(false)}
                 >
-                    <View style={styles.modalContent}>
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalGrabber} />
                         <Text style={styles.modalTitle}>{t('create.selectDuration')}</Text>
-                        {durations.map(d => (
-                            <TouchableOpacity
-                                key={d}
-                                style={styles.modalOption}
-                                onPress={() => {
-                                    setDuration(d);
-                                    setShowDurationPicker(false);
-                                }}
-                            >
-                                <Text style={[styles.modalOptionText, duration === d && styles.modalOptionTextSelected]}>
-                                    {d} {t('common.minutes')}
-                                </Text>
-                                {duration === d && <Ionicons name="checkmark" size={24} color={Colors[colorScheme].primary} />}
-                            </TouchableOpacity>
-                        ))}
+                        {durations.map(d => {
+                            const selected = duration === d;
+                            return (
+                                <TouchableOpacity
+                                    key={d}
+                                    style={styles.modalOption}
+                                    onPress={() => {
+                                        setDuration(d);
+                                        setShowDurationPicker(false);
+                                    }}
+                                >
+                                    <Text style={[styles.modalOptionText, selected && styles.modalOptionTextSelected]}>
+                                        {d} {t('common.minutes')}
+                                    </Text>
+                                    {selected && <Check size={20} color={c.primary} strokeWidth={2.4} />}
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
                 </TouchableOpacity>
             </Modal>
@@ -539,17 +512,17 @@ export default function CreateMatchScreen() {
             {/* Date/Time Picker Modal */}
             <Modal visible={showDateTimePicker} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
-                    <View style={styles.dateTimeModalContent}>
-                        <View style={styles.dateTimeModalHeader}>
+                    <View style={styles.dateTimeSheet}>
+                        <View style={styles.dateTimeHeader}>
                             <Text style={styles.modalTitle}>{t('create.addTimeSlot')}</Text>
-                            <TouchableOpacity onPress={() => setShowDateTimePicker(false)}>
-                                <Ionicons name="close" size={28} color={Colors[colorScheme].text} />
+                            <TouchableOpacity onPress={() => setShowDateTimePicker(false)} hitSlop={8}>
+                                <X size={22} color={c.textMuted} strokeWidth={2} />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={styles.dateTimeScrollView} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={styles.dateTimeScroll} showsVerticalScrollIndicator={false}>
                             {/* Preview Card */}
-                            <Card style={styles.previewCard}>
+                            <Card tone="sunk" style={styles.previewCard}>
                                 <Text style={styles.previewLabel}>{t('create.yourTimeSlot')}</Text>
                                 <Text style={styles.previewDate}>
                                     {tempDate.toLocaleDateString('en-GB', {
@@ -565,7 +538,7 @@ export default function CreateMatchScreen() {
                                     {tempEndTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                                 </Text>
                                 <View style={styles.previewDurationRow}>
-                                    <Ionicons name="time-outline" size={16} color={Colors[colorScheme].textSecondary} />
+                                    <Clock size={14} color={c.textMuted} strokeWidth={2} />
                                     <Text style={styles.previewDuration}>
                                         {duration} {t('common.minutes')}
                                     </Text>
@@ -574,7 +547,7 @@ export default function CreateMatchScreen() {
 
                             {/* Date Picker */}
                             <View style={styles.dateTimeSection}>
-                                <Text style={styles.dateTimeLabel}>📅 {t('create.selectDate')}</Text>
+                                <Text style={styles.dateTimeLabel}>{t('create.selectDate')}</Text>
                                 {Platform.OS === 'web' ? (
                                     <TextInput
                                         style={styles.webDateInput}
@@ -586,6 +559,7 @@ export default function CreateMatchScreen() {
                                             }
                                         }}
                                         placeholder="YYYY-MM-DD"
+                                        placeholderTextColor={c.textTertiary}
                                     />
                                 ) : (
                                     <DateTimePicker
@@ -602,7 +576,7 @@ export default function CreateMatchScreen() {
 
                             {/* Start Time Picker */}
                             <View style={styles.dateTimeSection}>
-                                <Text style={styles.dateTimeLabel}>🕐 {t('create.selectStartTime')}</Text>
+                                <Text style={styles.dateTimeLabel}>{t('create.selectStartTime')}</Text>
                                 <Text style={styles.dateTimeHint}>
                                     {t('create.endTimeHint', { minutes: duration })}
                                 </Text>
@@ -627,6 +601,7 @@ export default function CreateMatchScreen() {
                                             }
                                         }}
                                         placeholder="HH:MM"
+                                        placeholderTextColor={c.textTertiary}
                                     />
                                 ) : (
                                     <DateTimePicker
@@ -647,19 +622,21 @@ export default function CreateMatchScreen() {
                             </View>
                         </ScrollView>
 
-                        <View style={styles.dateTimeModalFooter}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.modalButtonSecondary]}
-                                onPress={() => setShowDateTimePicker(false)}
-                            >
-                                <Text style={styles.modalButtonTextSecondary}>{t('common.cancel')}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.modalButtonPrimary]}
-                                onPress={saveTimeSlot}
-                            >
-                                <Text style={styles.modalButtonTextPrimary}>{t('create.addSlot')}</Text>
-                            </TouchableOpacity>
+                        <View style={styles.dateTimeFooter}>
+                            <View style={styles.dateTimeFooterBtn}>
+                                <Button
+                                    title={t('common.cancel')}
+                                    variant="secondary"
+                                    onPress={() => setShowDateTimePicker(false)}
+                                />
+                            </View>
+                            <View style={styles.dateTimeFooterBtn}>
+                                <Button
+                                    title={t('create.addSlot')}
+                                    onPress={saveTimeSlot}
+                                    icon={<Plus size={16} color={c.primaryInk} strokeWidth={2.2} />}
+                                />
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -668,394 +645,316 @@ export default function CreateMatchScreen() {
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    section: {
-        marginBottom: 16,
-        gap: 12,
-    },
-    sectionHeader: {
-        fontSize: 18,
-        fontWeight: '700',
-        marginTop: 8,
-        marginBottom: 12,
-        color: Colors[colorScheme].text,
-    },
-    sectionHeaderRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 8,
-        marginBottom: 12,
-    },
-    rowCard: {
-        marginBottom: 0,
-        padding: 0,
-        justifyContent: 'center',
-    },
-    selectionRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-        minHeight: 60,
-    },
-    selectionLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    selectionIcon: {
-        color: Colors[colorScheme].text,
-    },
-    selectionLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: Colors[colorScheme].text,
-    },
+const getStyles = (colorScheme: 'light' | 'dark') => {
+    const c = Colors[colorScheme];
+    return StyleSheet.create({
+        safe: {
+            flex: 1,
+            backgroundColor: c.background,
+        },
+        container: {
+            flex: 1,
+            backgroundColor: c.background,
+        },
 
-    // Tactical Board — Format Picker
-    tacticalSubtitle: {
-        fontSize: 13,
-        color: Colors[colorScheme].textSecondary,
-        textAlign: 'center',
-        marginBottom: 16,
-        marginTop: 4,
-    },
-    tacticalGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-        justifyContent: 'center',
-        paddingVertical: 8,
-    },
-    tacticalCard: {
-        width: '45%',
-        borderRadius: 16,
-        padding: 12,
-        alignItems: 'center',
-        backgroundColor: Colors[colorScheme].card,
-        borderWidth: 2,
-        borderColor: Colors[colorScheme].border,
-    },
-    tacticalCardSelected: {
-        borderColor: Colors[colorScheme].primary,
-        backgroundColor: Colors[colorScheme].primaryLight,
-    },
-    miniPitch: {
-        width: '100%',
-        height: 80,
-        borderRadius: 8,
-        backgroundColor: colorScheme === 'dark' ? '#1A3A24' : '#2D8B4E',
-        borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.4)',
-        overflow: 'hidden',
-        marginBottom: 8,
-    },
-    miniPitchSelected: {
-        backgroundColor: colorScheme === 'dark' ? '#1E4D2E' : '#1B8B4E',
-    },
-    pitchCenterLine: {
-        position: 'absolute',
-        left: '50%',
-        top: 0,
-        bottom: 0,
-        width: 1,
-        backgroundColor: 'rgba(255,255,255,0.35)',
-    },
-    pitchCenterCircle: {
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.35)',
-        marginLeft: -10,
-        marginTop: -10,
-    },
-    playerDot: {
-        position: 'absolute',
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    playerDotHome: {
-        backgroundColor: '#FFFFFF',
-    },
-    playerDotAway: {
-        backgroundColor: '#FCD34D',
-    },
-    tacticalLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-    },
-    tacticalLabelSelected: {
-        color: Colors[colorScheme].primary,
-    },
-    tacticalCheck: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-    },
+        // Header
+        header: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 14,
+            paddingHorizontal: 20,
+            paddingTop: 8,
+            paddingBottom: 12,
+        },
+        backCircle: {
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: c.card,
+            borderWidth: 1,
+            borderColor: c.border,
+        },
+        headerTitle: {
+            fontFamily: Fonts.display,
+            fontSize: 18,
+            fontWeight: '800',
+            letterSpacing: -0.4,
+            color: c.text,
+        },
 
-    // Whiteboard Time Slots
-    slotPin: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors[colorScheme].card,
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 10,
-        borderLeftWidth: 4,
-        borderLeftColor: Colors[colorScheme].primary,
-        shadowColor: Colors[colorScheme].shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.8,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    slotPinDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: Colors[colorScheme].primary,
-        marginRight: 12,
-    },
-    slotPinContent: {
-        flex: 1,
-    },
-    slotPinNumber: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: Colors[colorScheme].textTertiary,
-        letterSpacing: 0.5,
-        marginBottom: 2,
-    },
-    slotPinText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: Colors[colorScheme].text,
-    },
-    slotPinDelete: {
-        padding: 4,
-    },
+        scrollContent: {
+            paddingHorizontal: 20,
+            paddingTop: 8,
+            paddingBottom: 140,
+        },
 
-    // Empty board state
-    emptyBoard: {
-        borderRadius: 16,
-        padding: 28,
-        alignItems: 'center',
-        backgroundColor: colorScheme === 'dark' ? 'rgba(74,222,128,0.04)' : 'rgba(27,139,78,0.03)',
-        borderWidth: 2,
-        borderStyle: 'dashed',
-        borderColor: Colors[colorScheme].border,
-    },
-    emptyBoardInner: {
-        width: 60,
-        gap: 6,
-        marginBottom: 12,
-    },
-    emptyBoardLine: {
-        height: 3,
-        borderRadius: 2,
-        backgroundColor: Colors[colorScheme].border,
-    },
-    emptyText: {
-        fontSize: 16,
-        color: Colors[colorScheme].textSecondary,
-        fontWeight: '600',
-        marginBottom: 4,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: Colors[colorScheme].textTertiary,
-    },
+        // Kicker micro-label
+        kicker: {
+            fontFamily: Fonts.body,
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: c.textMuted,
+            marginBottom: 12,
+        },
+        kickerSpaced: {
+            marginTop: 10,
+        },
 
-    // Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: Colors[colorScheme].backgroundAlt,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 20,
-        maxHeight: '70%',
-        borderTopWidth: 1,
-        borderTopColor: Colors[colorScheme].cardBorder,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        textAlign: 'center',
-        color: Colors[colorScheme].text,
-    },
-    // Date/Time Modal Styles
-    dateTimeModalContent: {
-        backgroundColor: Colors[colorScheme].backgroundAlt,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        maxHeight: '80%',
-        height: '80%',
-        borderTopWidth: 1,
-        borderTopColor: Colors[colorScheme].cardBorder,
-    },
-    dateTimeModalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors[colorScheme].border,
-    },
-    dateTimeScrollView: {
-        flex: 1,
-        paddingHorizontal: 20,
-    },
-    dateTimeModalFooter: {
-        flexDirection: 'row',
-        gap: 12,
-        padding: 20,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: Colors[colorScheme].border,
-        backgroundColor: Colors[colorScheme].backgroundAlt,
-    },
-    modalOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors[colorScheme].border,
-    },
-    modalOptionText: {
-        fontSize: 17,
-        color: Colors[colorScheme].text,
-    },
-    modalOptionTextSelected: {
-        color: Colors[colorScheme].primary,
-        fontWeight: '600',
-    },
-    dateTimeSection: {
-        marginBottom: 24,
-        marginTop: 16,
-    },
-    dateTimeLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 12,
-        color: Colors[colorScheme].text,
-        textAlign: 'center',
-    },
-    dateTimeHint: {
-        fontSize: 12,
-        color: Colors[colorScheme].textSecondary,
-        textAlign: 'center',
-        marginBottom: 8,
-        fontStyle: 'italic',
-    },
-    previewCard: {
-        padding: 16,
-        marginTop: 16,
-        marginBottom: 8,
-        backgroundColor: Colors[colorScheme].secondary,
-        borderColor: Colors[colorScheme].primary,
-        borderWidth: 1,
-        alignItems: 'center',
-    },
-    previewLabel: {
-        fontSize: 12,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 8,
-        textTransform: 'uppercase',
-        fontWeight: '600',
-    },
-    previewDate: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 4,
-    },
-    previewTime: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: Colors[colorScheme].primary,
-        marginBottom: 8,
-    },
-    previewDurationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    previewDuration: {
-        fontSize: 13,
-        color: Colors[colorScheme].textSecondary,
-        fontWeight: '500',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 20,
-    },
-    modalButton: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 16,
-        alignItems: 'center',
-    },
-    modalButtonPrimary: {
-        backgroundColor: Colors[colorScheme].primary,
-    },
-    modalButtonSecondary: {
-        backgroundColor: Colors[colorScheme].background,
-        borderWidth: 1,
-        borderColor: Colors[colorScheme].border,
-    },
-    modalButtonTextPrimary: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    modalButtonTextSecondary: {
-        color: Colors[colorScheme].text,
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    webDateInput: {
-        backgroundColor: Colors[colorScheme].background,
-        borderWidth: 2,
-        borderColor: Colors[colorScheme].primary,
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 18,
-        fontWeight: '600',
-        textAlign: 'center',
-        color: Colors[colorScheme].text,
-        marginTop: 12,
-    },
+        pickerGroup: {
+            marginBottom: 16,
+        },
 
-    footer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: 20,
-        backgroundColor: Colors[colorScheme].background,
-        borderTopWidth: 1,
-        borderTopColor: Colors[colorScheme].border,
-    },
-});
+        // Slots header row
+        slotsHeaderRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 12,
+        },
+        addAffordance: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+            paddingVertical: 4,
+            paddingHorizontal: 4,
+            marginBottom: 12,
+        },
+        addAffordanceText: {
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '700',
+            color: c.primary,
+        },
+
+        // Slot rows
+        slotList: {
+            gap: 10,
+        },
+        slotRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            backgroundColor: c.card,
+            borderWidth: 1,
+            borderColor: c.border,
+            borderRadius: 14,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+        },
+        slotNumber: {
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: c.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        slotNumberText: {
+            fontFamily: Fonts.display,
+            fontSize: 13,
+            fontWeight: '800',
+            color: c.primaryInk,
+        },
+        slotText: {
+            flex: 1,
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '700',
+            color: c.text,
+        },
+        slotDelete: {
+            padding: 2,
+        },
+
+        // Footer / sticky CTA
+        footer: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+        },
+        footerFade: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: -24,
+            bottom: 0,
+        },
+        footerInner: {
+            paddingHorizontal: 20,
+            paddingTop: 8,
+            paddingBottom: 20,
+            backgroundColor: c.background,
+        },
+
+        // Modal — bottom sheet (age / format / duration)
+        modalOverlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end',
+        },
+        modalSheet: {
+            backgroundColor: c.card,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingHorizontal: 20,
+            paddingTop: 10,
+            paddingBottom: 32,
+            maxHeight: '72%',
+            borderTopWidth: 1,
+            borderColor: c.border,
+        },
+        modalGrabber: {
+            alignSelf: 'center',
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: c.divider,
+            marginBottom: 14,
+        },
+        modalTitle: {
+            fontFamily: Fonts.display,
+            fontSize: 18,
+            fontWeight: '800',
+            letterSpacing: -0.4,
+            color: c.text,
+            marginBottom: 8,
+        },
+        modalOption: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 15,
+            borderBottomWidth: 1,
+            borderBottomColor: c.divider,
+        },
+        modalOptionText: {
+            fontFamily: Fonts.body,
+            fontSize: 15,
+            fontWeight: '500',
+            color: c.text,
+        },
+        modalOptionTextSelected: {
+            color: c.primary,
+            fontWeight: '700',
+        },
+
+        // Date/Time modal
+        dateTimeSheet: {
+            backgroundColor: c.card,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            maxHeight: '82%',
+            height: '82%',
+            borderTopWidth: 1,
+            borderColor: c.border,
+        },
+        dateTimeHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: 14,
+            borderBottomWidth: 1,
+            borderBottomColor: c.divider,
+        },
+        dateTimeScroll: {
+            flex: 1,
+            paddingHorizontal: 20,
+        },
+        dateTimeSection: {
+            marginTop: 16,
+            marginBottom: 20,
+        },
+        dateTimeLabel: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '700',
+            color: c.textSecondary,
+            textAlign: 'center',
+            marginBottom: 10,
+        },
+        dateTimeHint: {
+            fontFamily: Fonts.body,
+            fontSize: 11.5,
+            fontWeight: '500',
+            color: c.textMuted,
+            textAlign: 'center',
+            marginBottom: 8,
+        },
+        dateTimeFooter: {
+            flexDirection: 'row',
+            gap: 12,
+            paddingHorizontal: 20,
+            paddingTop: 14,
+            paddingBottom: 24,
+            borderTopWidth: 1,
+            borderTopColor: c.divider,
+            backgroundColor: c.card,
+        },
+        dateTimeFooterBtn: {
+            flex: 1,
+        },
+
+        // Preview card inside date/time modal
+        previewCard: {
+            marginTop: 16,
+            marginBottom: 4,
+            alignItems: 'center',
+        },
+        previewLabel: {
+            fontFamily: Fonts.body,
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: c.textMuted,
+            marginBottom: 8,
+        },
+        previewDate: {
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '700',
+            color: c.text,
+            marginBottom: 4,
+        },
+        previewTime: {
+            fontFamily: Fonts.display,
+            fontSize: 26,
+            fontWeight: '800',
+            letterSpacing: -1,
+            color: c.primary,
+            marginBottom: 8,
+        },
+        previewDurationRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+        },
+        previewDuration: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '600',
+            color: c.textMuted,
+        },
+        webDateInput: {
+            backgroundColor: c.surfaceSunk,
+            borderWidth: 1,
+            borderColor: c.divider,
+            borderRadius: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            fontFamily: Fonts.body,
+            fontSize: 16,
+            fontWeight: '600',
+            textAlign: 'center',
+            color: c.text,
+            marginTop: 8,
+        },
+    });
+};

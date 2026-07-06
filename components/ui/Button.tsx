@@ -1,75 +1,90 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import React from 'react';
-import { ActivityIndicator, Pressable, PressableProps, StyleSheet, Text } from 'react-native';
+import { Fonts } from '@/constants/Typography';
+import React, { useState } from 'react';
+import { ActivityIndicator, Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
+
+type Variant = 'primary' | 'secondary' | 'ghost' | 'deny';
 
 interface ButtonProps extends PressableProps {
     title: string;
-    variant?: 'primary' | 'secondary' | 'outline';
+    variant?: Variant;
+    // 'outline' kept as a back-compat alias for 'secondary'
     loading?: boolean;
+    icon?: React.ReactNode;
     style?: any;
 }
 
-export function Button({ title, variant = 'primary', loading, style, disabled, ...props }: ButtonProps) {
-    const colorScheme = useColorScheme() ?? 'light';
-    const styles = getStyles(colorScheme);
+export function Button({ title, variant = 'primary', loading, icon, style, disabled, ...props }: ButtonProps) {
+    const scheme = useColorScheme() ?? 'light';
+    const c = Colors[scheme];
+    const [pressed, setPressed] = useState(false);
 
-    const getTextColor = () => {
-        if (disabled) return Colors[colorScheme].textTertiary;
-        if (variant === 'primary') return '#fff';
-        if (variant === 'secondary') return Colors[colorScheme].primary;
-        return Colors[colorScheme].text;
+    // Back-compat: old screens may still pass 'outline'
+    const v: Variant = (variant as any) === 'outline' ? 'secondary' : variant;
+
+    const textColor = () => {
+        if (disabled) return c.textTertiary;
+        if (v === 'primary') return c.primaryInk;
+        if (v === 'deny') return c.error;
+        return c.primary;
     };
 
-    const getBackgroundColor = (pressed: boolean) => {
-        if (disabled) return Colors[colorScheme].border;
-        if (variant === 'primary') return pressed ? '#157A42' : '#1B8B4E';
-        if (variant === 'secondary') return pressed ? Colors[colorScheme].cardBorder : Colors[colorScheme].secondary;
+    const bgColor = () => {
+        if (v === 'primary') {
+            if (disabled) return scheme === 'dark' ? 'rgba(255,255,255,0.08)' : c.divider;
+            return pressed ? c.primaryDark : c.primary;
+        }
+        if (pressed) return v === 'deny' ? 'rgba(192,85,79,0.08)' : c.primaryTint;
+        return 'transparent';
+    };
+
+    const borderColor = () => {
+        if (v === 'secondary') return c.primary;
+        if (v === 'deny') return c.errorBorder;
         return 'transparent';
     };
 
     return (
         <Pressable
-            style={({ pressed }) => [
-                styles.container,
-                { backgroundColor: getBackgroundColor(pressed) },
-                variant === 'primary' && !disabled && {
-                    shadowColor: '#1B8B4E',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 10,
-                    elevation: 6,
-                },
-                variant === 'outline' && {
-                    borderWidth: 1,
-                    borderColor: Colors[colorScheme].border,
+            onPressIn={() => setPressed(true)}
+            onPressOut={() => setPressed(false)}
+            disabled={disabled || loading}
+            style={[
+                styles.base,
+                {
+                    backgroundColor: bgColor(),
+                    borderColor: borderColor(),
+                    borderWidth: v === 'secondary' || v === 'deny' ? 1 : 0,
                 },
                 style,
             ]}
-            disabled={disabled || loading}
             {...props}
         >
             {loading ? (
-                <ActivityIndicator color={getTextColor()} />
+                <ActivityIndicator color={textColor()} />
             ) : (
-                <Text style={[styles.text, { color: getTextColor() }]}>{title}</Text>
+                <View style={styles.row}>
+                    {icon}
+                    <Text style={[styles.text, { color: textColor(), marginLeft: icon ? 8 : 0 }]}>{title}</Text>
+                </View>
             )}
         </Pressable>
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: {
+const styles = StyleSheet.create({
+    base: {
         height: 52,
-        borderRadius: 16,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        flexDirection: 'row',
-        paddingHorizontal: 28,
+        paddingHorizontal: 22,
     },
+    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     text: {
-        fontSize: 16,
-        fontWeight: '600',
-        letterSpacing: 0.5,
+        fontFamily: Fonts.body,
+        fontSize: 15,
+        fontWeight: '700',
     },
 });

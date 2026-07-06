@@ -121,6 +121,10 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    // Editorial Turf type system
+    Bricolage: require('../assets/fonts/BricolageGrotesque-Variable.ttf'),
+    'Bricolage-Bold': require('../assets/fonts/BricolageGrotesque-Variable.ttf'),
+    Figtree: require('../assets/fonts/Figtree-Variable.ttf'),
     ...FontAwesome.font,
   });
 

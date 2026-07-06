@@ -1,11 +1,14 @@
+import { Monogram } from '@/components/ui/Brandmark';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { supabase } from '@/lib/supabase';
 import { updatePassword } from '@/lib/auth';
-import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
+import { AlertCircle, CheckCircle, Lock } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,7 +23,7 @@ import {
 
 export default function ResetPasswordScreen() {
     const colorScheme = useColorScheme() ?? 'light';
-    const isDark = colorScheme === 'dark';
+    const c = Colors[colorScheme];
     const { t } = useTranslation();
 
     const [password, setPassword] = useState('');
@@ -116,66 +119,63 @@ export default function ResetPasswordScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}
+            style={[styles.container, { backgroundColor: c.background }]}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <Stack.Screen options={{ headerShown: false }} />
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-                <View style={[styles.orb1, { backgroundColor: isDark ? 'rgba(27,139,78,0.22)' : 'rgba(27,139,78,0.10)' }]} />
-                <View style={[styles.orb2, { backgroundColor: isDark ? 'rgba(34,197,94,0.16)' : 'rgba(34,197,94,0.07)' }]} />
 
                 <View style={styles.header}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="key-outline" size={40} color="#fff" />
-                    </View>
-                    <Text style={[styles.title, { color: Colors[colorScheme].text }]}>{t('auth.resetPassword')}</Text>
-                    <Text style={[styles.subtitle, { color: Colors[colorScheme].textSecondary }]}>
+                    <Monogram size={56} />
+                    <Text style={[styles.title, { color: c.text }]}>{t('auth.resetPassword')}</Text>
+                    <Text style={[styles.subtitle, { color: c.textMuted }]}>
                         {t('auth.enterNewPassword')}
                     </Text>
                 </View>
 
-                <View style={[styles.formCard, {
-                    backgroundColor: Colors[colorScheme].card,
-                    shadowColor: isDark ? '#000' : 'rgba(27,139,78,0.15)',
-                }]}>
+                <Card padding={20} style={styles.formCard}>
                     {loading ? (
                         <View style={styles.centerContent}>
-                            <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
-                            <Text style={[styles.loadingText, { color: Colors[colorScheme].textSecondary }]}>
+                            <ActivityIndicator size="large" color={c.primary} />
+                            <Text style={[styles.loadingText, { color: c.textMuted }]}>
                                 {t('auth.verifyingLink')}
                             </Text>
                         </View>
                     ) : success ? (
                         <View style={styles.centerContent}>
-                            <Ionicons name="checkmark-circle" size={64} color={Colors[colorScheme].primary} />
-                            <Text style={[styles.successTitle, { color: Colors[colorScheme].text }]}>
+                            <View style={[styles.stateIcon, { backgroundColor: c.primaryTint }]}>
+                                <CheckCircle size={30} color={c.primary} strokeWidth={2} />
+                            </View>
+                            <Text style={[styles.successTitle, { color: c.text }]}>
                                 {t('auth.passwordUpdated')}
                             </Text>
-                            <Text style={[styles.successText, { color: Colors[colorScheme].textSecondary }]}>
+                            <Text style={[styles.successText, { color: c.textMuted }]}>
                                 {t('auth.passwordResetSuccess')}
                             </Text>
                         </View>
                     ) : !sessionReady ? (
                         <View style={styles.centerContent}>
-                            <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
-                            <Text style={[styles.errorTitle, { color: Colors[colorScheme].text }]}>
+                            <View style={[styles.stateIcon, { backgroundColor: 'rgba(192,85,79,0.08)' }]}>
+                                <AlertCircle size={30} color={c.error} strokeWidth={2} />
+                            </View>
+                            <Text style={[styles.errorTitle, { color: c.text }]}>
                                 {t('auth.linkExpired')}
                             </Text>
-                            <Text style={[styles.errorDesc, { color: Colors[colorScheme].textSecondary }]}>
+                            <Text style={[styles.errorDesc, { color: c.textMuted }]}>
                                 {error || t('auth.linkExpiredDesc')}
                             </Text>
                         </View>
                     ) : (
                         <>
                             {error && (
-                                <View style={styles.errorContainer}>
-                                    <Text style={[styles.errorText, { color: Colors[colorScheme].error }]}>{error}</Text>
+                                <View style={[styles.errorContainer, { borderColor: c.errorBorder }]}>
+                                    <Text style={[styles.errorText, { color: c.error }]}>{error}</Text>
                                 </View>
                             )}
 
                             <Input
                                 label={t('auth.newPassword')}
-                                icon="lock-closed-outline"
+                                icon={<Lock size={17} color={c.textMuted} strokeWidth={2} />}
                                 placeholder={t('auth.newPasswordPlaceholder')}
                                 secureTextEntry
                                 autoCapitalize="none"
@@ -185,7 +185,7 @@ export default function ResetPasswordScreen() {
 
                             <Input
                                 label={t('auth.confirmPassword')}
-                                icon="lock-closed-outline"
+                                icon={<Lock size={17} color={c.textMuted} strokeWidth={2} />}
                                 placeholder={t('auth.confirmNewPassword')}
                                 secureTextEntry
                                 autoCapitalize="none"
@@ -197,11 +197,11 @@ export default function ResetPasswordScreen() {
                                 title={t('auth.updatePassword')}
                                 onPress={handleResetPassword}
                                 loading={submitting}
-                                style={{ marginTop: 16 }}
+                                style={{ marginTop: 8 }}
                             />
                         </>
                     )}
-                </View>
+                </Card>
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -213,94 +213,76 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         padding: 24,
-    },
-    orb1: {
-        position: 'absolute',
-        top: -100,
-        left: -60,
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-    },
-    orb2: {
-        position: 'absolute',
-        bottom: 60,
-        right: -80,
-        width: 240,
-        height: 240,
-        borderRadius: 120,
+        maxWidth: 440,
+        width: '100%',
+        alignSelf: 'center',
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
-    },
-    iconContainer: {
-        width: 88,
-        height: 88,
-        borderRadius: 24,
-        backgroundColor: '#1B8B4E',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-        shadowColor: '#1B8B4E',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 10,
+        marginBottom: 32,
     },
     title: {
-        fontSize: 30,
+        fontFamily: Fonts.display,
+        fontSize: 28,
         fontWeight: '800',
-        marginBottom: 8,
-        letterSpacing: -0.5,
+        letterSpacing: -0.8,
+        marginTop: 20,
+        marginBottom: 6,
     },
-    subtitle: { fontSize: 16 },
-    formCard: {
-        width: '100%',
-        padding: 24,
-        borderRadius: 28,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 24,
-        elevation: 4,
-    },
+    subtitle: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '500', textAlign: 'center' },
+    formCard: { width: '100%' },
     centerContent: {
         alignItems: 'center',
-        paddingVertical: 24,
+        paddingVertical: 20,
+    },
+    stateIcon: {
+        width: 56,
+        height: 56,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
     },
     loadingText: {
-        fontSize: 15,
+        fontFamily: Fonts.body,
+        fontSize: 13,
+        fontWeight: '500',
         marginTop: 16,
     },
     successTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        marginTop: 16,
-        marginBottom: 8,
+        fontFamily: Fonts.display,
+        fontSize: 20,
+        fontWeight: '800',
+        letterSpacing: -0.5,
+        marginBottom: 6,
     },
     successText: {
-        fontSize: 15,
+        fontFamily: Fonts.body,
+        fontSize: 13,
+        fontWeight: '500',
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: 19,
     },
     errorTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        marginTop: 16,
-        marginBottom: 8,
+        fontFamily: Fonts.display,
+        fontSize: 20,
+        fontWeight: '800',
+        letterSpacing: -0.5,
+        marginBottom: 6,
     },
     errorDesc: {
-        fontSize: 15,
+        fontFamily: Fonts.body,
+        fontSize: 13,
+        fontWeight: '500',
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: 19,
     },
     errorContainer: {
-        backgroundColor: 'rgba(239,68,68,0.08)',
+        backgroundColor: 'rgba(192,85,79,0.08)',
         borderRadius: 12,
-        padding: 16,
+        padding: 14,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: 'rgba(239,68,68,0.2)',
     },
-    errorText: { fontSize: 14, textAlign: 'center', fontWeight: '500' },
+    errorText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500' },
 });

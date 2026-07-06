@@ -1,9 +1,11 @@
+import { Button } from '@/components/ui/Button';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { useAuth } from '@/contexts/AuthContext';
 import { markOnboardingComplete } from '@/lib/storage';
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
+import { ArrowRight, CalendarPlus, Check, Send, Trophy } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,36 +21,33 @@ import {
 const { width } = Dimensions.get('window');
 
 interface OnboardingPage {
-    icon: keyof typeof Ionicons.glyphMap;
+    Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
     titleKey: string;
     descKey: string;
-    color: string;
 }
 
 const PAGES: OnboardingPage[] = [
     {
-        icon: 'add-circle',
+        Icon: CalendarPlus,
         titleKey: 'onboarding.createTitle',
         descKey: 'onboarding.createDesc',
-        color: '#4ADE80',
     },
     {
-        icon: 'share-social',
+        Icon: Send,
         titleKey: 'onboarding.shareTitle',
         descKey: 'onboarding.shareDesc',
-        color: '#60A5FA',
     },
     {
-        icon: 'trophy',
+        Icon: Trophy,
         titleKey: 'onboarding.trackTitle',
         descKey: 'onboarding.trackDesc',
-        color: '#FBBF24',
     },
 ];
 
 export default function OnboardingScreen() {
     const { t } = useTranslation();
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const { user } = useAuth();
     const flatListRef = useRef<FlatList>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -79,11 +78,11 @@ export default function OnboardingScreen() {
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
-            <View style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}>
+            <View style={[styles.container, { backgroundColor: c.background }]}>
                 <View style={styles.skipRow}>
                     {!isLast && (
                         <Pressable onPress={handleFinish} hitSlop={12}>
-                            <Text style={[styles.skipText, { color: Colors[colorScheme].textSecondary }]}>
+                            <Text style={[styles.skipText, { color: c.textMuted }]}>
                                 {t('onboarding.skip')}
                             </Text>
                         </Pressable>
@@ -99,19 +98,22 @@ export default function OnboardingScreen() {
                     keyExtractor={(_, i) => i.toString()}
                     onViewableItemsChanged={onViewableItemsChanged}
                     viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
-                    renderItem={({ item }) => (
-                        <View style={[styles.page, { width }]}>
-                            <View style={[styles.iconCircle, { backgroundColor: item.color + '20' }]}>
-                                <Ionicons name={item.icon} size={64} color={item.color} />
+                    renderItem={({ item }) => {
+                        const Icon = item.Icon;
+                        return (
+                            <View style={[styles.page, { width }]}>
+                                <View style={[styles.iconSquare, { backgroundColor: c.primaryTint }]}>
+                                    <Icon size={44} color={c.primary} strokeWidth={2} />
+                                </View>
+                                <Text style={[styles.title, { color: c.text }]}>
+                                    {t(item.titleKey)}
+                                </Text>
+                                <Text style={[styles.desc, { color: c.textMuted }]}>
+                                    {t(item.descKey)}
+                                </Text>
                             </View>
-                            <Text style={[styles.title, { color: Colors[colorScheme].text }]}>
-                                {t(item.titleKey)}
-                            </Text>
-                            <Text style={[styles.desc, { color: Colors[colorScheme].textSecondary }]}>
-                                {t(item.descKey)}
-                            </Text>
-                        </View>
-                    )}
+                        );
+                    }}
                 />
 
                 <View style={styles.footer}>
@@ -123,9 +125,7 @@ export default function OnboardingScreen() {
                                 style={[
                                     styles.dot,
                                     {
-                                        backgroundColor: i === currentIndex
-                                            ? Colors[colorScheme].primary
-                                            : Colors[colorScheme].border,
+                                        backgroundColor: i === currentIndex ? c.primary : c.divider,
                                         width: i === currentIndex ? 24 : 8,
                                     },
                                 ]}
@@ -134,19 +134,17 @@ export default function OnboardingScreen() {
                     </View>
 
                     {/* Button */}
-                    <Pressable
-                        style={[styles.button, { backgroundColor: Colors[colorScheme].primary }]}
+                    <Button
+                        title={isLast ? t('onboarding.getStarted') : t('onboarding.next')}
                         onPress={handleNext}
-                    >
-                        <Text style={styles.buttonText}>
-                            {isLast ? t('onboarding.getStarted') : t('onboarding.next')}
-                        </Text>
-                        <Ionicons
-                            name={isLast ? 'checkmark' : 'arrow-forward'}
-                            size={20}
-                            color="#fff"
-                        />
-                    </Pressable>
+                        icon={
+                            isLast ? (
+                                <Check size={17} color={c.primaryInk} strokeWidth={2.5} />
+                            ) : (
+                                <ArrowRight size={17} color={c.primaryInk} strokeWidth={2.5} />
+                            )
+                        }
+                    />
                 </View>
             </View>
         </>
@@ -165,8 +163,9 @@ const styles = StyleSheet.create({
         height: 90,
     },
     skipText: {
-        fontSize: 16,
-        fontWeight: '500',
+        fontFamily: Fonts.body,
+        fontSize: 14,
+        fontWeight: '600',
     },
     page: {
         flex: 1,
@@ -174,24 +173,26 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 40,
     },
-    iconCircle: {
-        width: 140,
-        height: 140,
-        borderRadius: 40,
+    iconSquare: {
+        width: 96,
+        height: 96,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 40,
+        marginBottom: 36,
     },
     title: {
-        fontSize: 28,
+        fontFamily: Fonts.display,
+        fontSize: 24,
         fontWeight: '800',
         textAlign: 'center',
-        marginBottom: 16,
-        letterSpacing: -0.5,
+        marginBottom: 14,
+        letterSpacing: -0.8,
     },
     desc: {
-        fontSize: 16,
-        lineHeight: 24,
+        fontFamily: Fonts.body,
+        fontSize: 15,
+        lineHeight: 23,
         textAlign: 'center',
     },
     footer: {
@@ -202,23 +203,11 @@ const styles = StyleSheet.create({
     dots: {
         flexDirection: 'row',
         justifyContent: 'center',
+        alignItems: 'center',
         gap: 6,
     },
     dot: {
         height: 8,
         borderRadius: 4,
-    },
-    button: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 16,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
     },
 });

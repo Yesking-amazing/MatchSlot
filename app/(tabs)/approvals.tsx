@@ -1,11 +1,13 @@
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
+import { ChevronRight, Clock, MapPin, ShieldCheck } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -31,6 +33,7 @@ interface PendingApproval {
 export default function ApprovalsScreen() {
     const { t } = useTranslation();
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const styles = getStyles(colorScheme);
     const { user } = useAuth();
     const [approvals, setApprovals] = useState<PendingApproval[]>([]);
@@ -105,7 +108,7 @@ export default function ApprovalsScreen() {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.centered}>
-                    <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
+                    <ActivityIndicator size="large" color={c.primary} />
                 </View>
             </SafeAreaView>
         );
@@ -116,38 +119,41 @@ export default function ApprovalsScreen() {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadApprovals(); }} tintColor={Colors[colorScheme].primary} />
+                    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadApprovals(); }} tintColor={c.primary} />
                 }
             >
                 <View style={styles.header}>
-                    <Text style={styles.title}>{t('approvals.title')}</Text>
+                    <View style={styles.titleRow}>
+                        <Text style={styles.title}>{t('approvals.title')}</Text>
+                        {approvals.length > 0 && (
+                            <View style={styles.countBadge}>
+                                <Text style={styles.countText}>{approvals.length}</Text>
+                            </View>
+                        )}
+                    </View>
                     <Text style={styles.subtitle}>
                         {approvals.length === 0 ? t('approvals.noPending') : t('approvals.pending', { count: approvals.length })}
                     </Text>
                 </View>
 
                 {approvals.length === 0 ? (
-                    <Card style={styles.emptyCard}>
-                        <View style={styles.emptyIconWrap}>
-                            <Ionicons name="shield-checkmark-outline" size={40} color={Colors[colorScheme].primary} />
-                        </View>
-                        <Text style={styles.emptyTitle}>{t('approvals.allClear')}</Text>
-                        <Text style={styles.emptySubtitle}>
-                            {t('approvals.allClearDesc')}
-                        </Text>
-                    </Card>
+                    <EmptyState
+                        icon={<ShieldCheck size={24} color={c.primary} strokeWidth={2} />}
+                        title={t('approvals.allClear')}
+                        subtitle={t('approvals.allClearDesc')}
+                    />
                 ) : (
                     approvals.map((item) => (
                         <TouchableOpacity
                             key={item.id}
-                            activeOpacity={0.8}
+                            activeOpacity={0.85}
                             onPress={() => router.push(`/approve/${item.approval_token}` as any)}
                         >
                             <Card style={styles.approvalCard}>
                                 <View style={styles.cardHeader}>
-                                    <View style={styles.urgentBadge}>
-                                        <View style={styles.urgentDot} />
-                                        <Text style={styles.urgentText}>{t('approvals.needsApproval')}</Text>
+                                    <View style={styles.needsPill}>
+                                        <Clock size={11} color={c.warningText} strokeWidth={2.5} />
+                                        <Text style={styles.needsPillText}>{t('approvals.needsApproval')}</Text>
                                     </View>
                                     <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
                                 </View>
@@ -157,23 +163,17 @@ export default function ApprovalsScreen() {
                                 </Text>
 
                                 <View style={styles.detailRow}>
-                                    <Ionicons name="person-outline" size={14} color={Colors[colorScheme].textSecondary} />
-                                    <Text style={styles.detailText}>
-                                        {item.offer.host_name}{item.offer.host_club ? ` (${item.offer.host_club})` : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="location-outline" size={14} color={Colors[colorScheme].textSecondary} />
+                                    <MapPin size={15} color={c.textMuted} strokeWidth={2} />
                                     <Text style={styles.detailText} numberOfLines={1}>{item.offer.location}</Text>
                                 </View>
                                 <View style={styles.detailRow}>
-                                    <Ionicons name="time-outline" size={14} color={Colors[colorScheme].textSecondary} />
+                                    <Clock size={15} color={c.textMuted} strokeWidth={2} />
                                     <Text style={styles.detailText}>{item.offer.duration} min • {t('approvals.slotsToReview', { count: item.slot_count })}</Text>
                                 </View>
 
                                 <View style={styles.reviewRow}>
                                     <Text style={styles.reviewText}>{t('approvals.tapToReview')}</Text>
-                                    <Ionicons name="chevron-forward" size={16} color={Colors[colorScheme].primary} />
+                                    <ChevronRight size={16} color={c.primary} strokeWidth={2.5} />
                                 </View>
                             </Card>
                         </TouchableOpacity>
@@ -184,44 +184,47 @@ export default function ApprovalsScreen() {
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors[colorScheme].background },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { padding: 20, paddingBottom: 100 },
-    header: { marginBottom: 20 },
-    title: { fontSize: 28, fontWeight: '700', color: Colors[colorScheme].text, marginBottom: 4 },
-    subtitle: { fontSize: 15, color: Colors[colorScheme].textSecondary },
-    emptyCard: { padding: 32, alignItems: 'center', gap: 8 },
-    emptyIconWrap: {
-        width: 72, height: 72, borderRadius: 22,
-        backgroundColor: Colors[colorScheme].secondary,
-        alignItems: 'center', justifyContent: 'center', marginBottom: 8,
-    },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors[colorScheme].text },
-    emptySubtitle: {
-        fontSize: 13, color: Colors[colorScheme].textTertiary,
-        textAlign: 'center', lineHeight: 18, paddingHorizontal: 8,
-    },
-    approvalCard: {
-        padding: 16, marginBottom: 14,
-        borderLeftWidth: 3, borderLeftColor: Colors[colorScheme].warning,
-    },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-    urgentBadge: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: 'rgba(251,191,36,0.12)',
-        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
-    },
-    urgentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors[colorScheme].warning },
-    urgentText: { fontSize: 11, fontWeight: '700', color: Colors[colorScheme].warning },
-    dateText: { fontSize: 12, color: Colors[colorScheme].textTertiary },
-    matchTitle: { fontSize: 17, fontWeight: '700', color: Colors[colorScheme].text, marginBottom: 8 },
-    detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-    detailText: { fontSize: 13, color: Colors[colorScheme].textSecondary, flex: 1 },
-    reviewRow: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
-        gap: 4, marginTop: 10, paddingTop: 10,
-        borderTopWidth: 1, borderTopColor: Colors[colorScheme].border,
-    },
-    reviewText: { fontSize: 13, fontWeight: '600', color: Colors[colorScheme].primary },
-});
+const getStyles = (colorScheme: 'light' | 'dark') => {
+    const c = Colors[colorScheme];
+    return StyleSheet.create({
+        container: { flex: 1, backgroundColor: c.background },
+        centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+        scrollContent: { padding: 20, paddingBottom: 100 },
+        header: { marginBottom: 20 },
+        titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+        title: {
+            fontFamily: Fonts.display, fontSize: 26, fontWeight: '800',
+            letterSpacing: -0.8, color: c.text,
+        },
+        countBadge: {
+            minWidth: 26, height: 26, borderRadius: 13, paddingHorizontal: 8,
+            backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center',
+        },
+        countText: { fontFamily: Fonts.display, fontSize: 14, fontWeight: '800', color: c.accentInk },
+        subtitle: { fontFamily: Fonts.body, fontSize: 13.5, fontWeight: '500', color: c.textMuted },
+        approvalCard: { padding: 16 },
+        cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+        needsPill: {
+            flexDirection: 'row', alignItems: 'center', gap: 5,
+            backgroundColor: 'rgba(232,168,58,0.16)',
+            paddingHorizontal: 9, height: 24, borderRadius: 999,
+        },
+        needsPillText: {
+            fontFamily: Fonts.body, fontSize: 11, fontWeight: '700',
+            letterSpacing: 0.6, textTransform: 'uppercase', color: c.warningText,
+        },
+        dateText: { fontFamily: Fonts.body, fontSize: 11.5, fontWeight: '500', color: c.textFaint },
+        matchTitle: {
+            fontFamily: Fonts.display, fontSize: 17, fontWeight: '800',
+            letterSpacing: -0.3, color: c.text, marginBottom: 10,
+        },
+        detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+        detailText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500', color: c.textMuted, flex: 1 },
+        reviewRow: {
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
+            gap: 4, marginTop: 12, paddingTop: 12,
+            borderTopWidth: 1, borderTopColor: c.divider,
+        },
+        reviewText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '700', color: c.primary },
+    });
+};

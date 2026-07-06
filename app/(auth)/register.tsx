@@ -1,9 +1,13 @@
+import { Monogram } from '@/components/ui/Brandmark';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, router } from 'expo-router';
+import { Lock, Mail, User } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,7 +30,7 @@ export default function RegisterScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const colorScheme = useColorScheme() ?? 'light';
-    const isDark = colorScheme === 'dark';
+    const c = Colors[colorScheme];
 
     const handleRegister = async () => {
         if (!name || !email || !password || !confirmPassword) { setError(t('auth.fillAllFields')); return; }
@@ -44,58 +48,49 @@ export default function RegisterScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}
+            style={[styles.container, { backgroundColor: c.background }]}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-                {/* Decorative orbs */}
-                <View style={[styles.orb1, { backgroundColor: isDark ? 'rgba(27,139,78,0.22)' : 'rgba(27,139,78,0.10)' }]} />
-                <View style={[styles.orb2, { backgroundColor: isDark ? 'rgba(34,197,94,0.16)' : 'rgba(34,197,94,0.07)' }]} />
-
                 <View style={styles.header}>
-                    <View style={styles.logoContainer}>
-                        <Text style={styles.logo}>⚽</Text>
-                    </View>
-                    <Text style={[styles.title, { color: Colors[colorScheme].text }]}>{t('auth.createAccount')}</Text>
-                    <Text style={[styles.subtitle, { color: Colors[colorScheme].textSecondary }]}>
+                    <Monogram size={56} />
+                    <Text style={[styles.title, { color: c.text }]}>{t('auth.createAccount')}</Text>
+                    <Text style={[styles.subtitle, { color: c.textMuted }]}>
                         {t('auth.joinMatchslot')}
                     </Text>
                 </View>
 
-                <View style={[styles.formCard, {
-                    backgroundColor: Colors[colorScheme].card,
-                    shadowColor: isDark ? '#000' : 'rgba(27,139,78,0.15)',
-                }]}>
+                <Card padding={20} style={styles.formCard}>
                     {error && (
-                        <View style={styles.errorContainer}>
-                            <Text style={[styles.errorText, { color: Colors[colorScheme].error }]}>{error}</Text>
+                        <View style={[styles.errorContainer, { borderColor: c.errorBorder }]}>
+                            <Text style={[styles.errorText, { color: c.error }]}>{error}</Text>
                         </View>
                     )}
 
-                    <Input label={t('auth.name')} icon="person-outline" placeholder={t('auth.namePlaceholder')}
+                    <Input label={t('auth.name')} icon={<User size={17} color={c.textMuted} strokeWidth={2} />} placeholder={t('auth.namePlaceholder')}
                         autoCapitalize="words" value={name} onChangeText={setName} />
-                    <Input label={t('auth.email')} icon="mail-outline" placeholder={t('auth.emailPlaceholder')}
+                    <Input label={t('auth.email')} icon={<Mail size={17} color={c.textMuted} strokeWidth={2} />} placeholder={t('auth.emailPlaceholder')}
                         keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
                         value={email} onChangeText={setEmail} />
-                    <Input label={t('auth.password')} icon="lock-closed-outline" placeholder={t('auth.createPasswordPlaceholder')}
+                    <Input label={t('auth.password')} icon={<Lock size={17} color={c.textMuted} strokeWidth={2} />} placeholder={t('auth.createPasswordPlaceholder')}
                         secureTextEntry autoCapitalize="none" value={password} onChangeText={setPassword} />
-                    <Input label={t('auth.confirmPassword')} icon="lock-closed-outline" placeholder={t('auth.confirmPasswordPlaceholder')}
+                    <Input label={t('auth.confirmPassword')} icon={<Lock size={17} color={c.textMuted} strokeWidth={2} />} placeholder={t('auth.confirmPasswordPlaceholder')}
                         secureTextEntry autoCapitalize="none" value={confirmPassword} onChangeText={setConfirmPassword} />
 
                     <Button title={t('auth.createAccount')} onPress={handleRegister} loading={loading} style={styles.button} />
 
                     <View style={styles.footer}>
-                        <Text style={[styles.footerText, { color: Colors[colorScheme].textSecondary }]}>
+                        <Text style={[styles.footerText, { color: c.textMuted }]}>
                             {t('auth.hasAccount')}{' '}
                         </Text>
                         <Link href="/(auth)/login" asChild>
                             <Pressable>
-                                <Text style={[styles.linkText, { color: Colors[colorScheme].primary }]}>{t('auth.signInLink')}</Text>
+                                <Text style={[styles.linkText, { color: c.primary }]}>{t('auth.signInLink')}</Text>
                             </Pressable>
                         </Link>
                     </View>
-                </View>
+                </Card>
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -107,69 +102,34 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         padding: 24,
-    },
-    orb1: {
-        position: 'absolute',
-        top: -100,
-        left: -60,
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-    },
-    orb2: {
-        position: 'absolute',
-        bottom: 60,
-        right: -80,
-        width: 240,
-        height: 240,
-        borderRadius: 120,
+        maxWidth: 440,
+        width: '100%',
+        alignSelf: 'center',
     },
     header: {
         alignItems: 'center',
-        marginBottom: 36,
+        marginBottom: 28,
     },
-    logoContainer: {
-        width: 88,
-        height: 88,
-        borderRadius: 24,
-        backgroundColor: '#1B8B4E',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-        shadowColor: '#1B8B4E',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 10,
-    },
-    logo: { fontSize: 44 },
     title: {
-        fontSize: 32,
+        fontFamily: Fonts.display,
+        fontSize: 28,
         fontWeight: '800',
-        marginBottom: 8,
-        letterSpacing: -0.5,
+        letterSpacing: -0.8,
+        marginTop: 20,
+        marginBottom: 6,
     },
-    subtitle: { fontSize: 16 },
-    formCard: {
-        width: '100%',
-        padding: 24,
-        borderRadius: 28,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 24,
-        elevation: 4,
-    },
+    subtitle: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '500' },
+    formCard: { width: '100%' },
     errorContainer: {
-        backgroundColor: 'rgba(239,68,68,0.08)',
+        backgroundColor: 'rgba(192,85,79,0.08)',
         borderRadius: 12,
-        padding: 16,
+        padding: 14,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: 'rgba(239,68,68,0.2)',
     },
-    errorText: { fontSize: 14, textAlign: 'center', fontWeight: '500' },
-    button: { marginTop: 12 },
-    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
-    footerText: { fontSize: 15 },
-    linkText: { fontSize: 15, fontWeight: '700' },
+    errorText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500' },
+    button: { marginTop: 14 },
+    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+    footerText: { fontFamily: Fonts.body, fontSize: 13.5, fontWeight: '500' },
+    linkText: { fontFamily: Fonts.body, fontSize: 13.5, fontWeight: '700' },
 });

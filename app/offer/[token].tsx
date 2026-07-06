@@ -1,15 +1,20 @@
-import { AppBanner } from '@/components/ui/AppBanner';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Crest } from '@/components/ui/Crest';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Monogram, Wordmark } from '@/components/ui/Brandmark';
+import { StatusChip, slotStatusKind } from '@/components/ui/StatusChip';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { openInMaps } from '@/lib/mapsUtils';
 import { supabase } from '@/lib/supabase';
 import { MatchOfferWithSlots, Slot, SlotStatus } from '@/types/database';
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { AlertCircle, Clock, Lock, MapPin, Navigation } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 /**
  * Guest Coach View - US-GC-01, US-GC-02
@@ -17,6 +22,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Touc
  */
 export default function OfferViewScreen() {
     const colorScheme = useColorScheme() ?? 'light';
+    const c = Colors[colorScheme];
     const styles = getStyles(colorScheme);
     const { t } = useTranslation();
     const { token } = useLocalSearchParams<{ token: string }>();
@@ -166,10 +172,19 @@ export default function OfferViewScreen() {
         return `${durationMins} mins`;
     };
 
+    const openInApp = () => {
+        const deepLink = `matchslot://offer/${token}`;
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.location.href = deepLink;
+        } else {
+            Linking.openURL(deepLink).catch(() => { });
+        }
+    };
+
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={Colors[colorScheme].primary} />
+                <ActivityIndicator size="large" color={c.primary} />
             </View>
         );
     }
@@ -177,320 +192,455 @@ export default function OfferViewScreen() {
     if (!offer) {
         return (
             <View style={styles.centerContainer}>
-                <Ionicons name="alert-circle-outline" size={64} color={Colors[colorScheme].error} />
-                <Text style={styles.errorTitle}>{t('offer.notFound')}</Text>
-                <Text style={styles.errorSubtitle}>{t('offer.notFoundDesc')}</Text>
+                <View style={styles.column}>
+                    <EmptyState
+                        icon={<AlertCircle size={24} color={c.primary} strokeWidth={2} />}
+                        title={t('offer.notFound')}
+                        subtitle={t('offer.notFoundDesc')}
+                    />
+                </View>
             </View>
         );
     }
 
+    const isClosed = offer.status !== 'OPEN';
+
     return (
         <>
-            <Stack.Screen options={{
-                title: t('offer.title'),
-                headerTitleStyle: { fontWeight: '700', fontSize: 18, color: Colors[colorScheme].text },
-                headerBackTitle: t('common.back'),
-                headerShadowVisible: false,
-                headerStyle: { backgroundColor: Colors[colorScheme].background },
-                headerTintColor: Colors[colorScheme].text,
-            }} />
-
-            <AppBanner deepLink={`matchslot://offer/${token}`} />
+            <Stack.Screen options={{ headerShown: false }} />
 
             <View style={styles.container}>
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    {/* Match Details Header */}
-                    <Card style={styles.detailsCard}>
-                        <View style={styles.iconHeader}>
-                            <View style={styles.iconCircle}>
-                                <Ionicons name="football" size={32} color={Colors[colorScheme].primary} />
+                {/* Verified header */}
+                <View style={styles.verifiedHeader}>
+                    <View style={styles.column}>
+                        <View style={styles.verifiedRow}>
+                            <Wordmark size={19} />
+                            <View style={styles.secureChip}>
+                                <Lock size={11} color={c.primary} strokeWidth={2.5} />
+                                <Text style={styles.secureChipText}>Secure invite</Text>
                             </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.mainTitle}>
-                                    {offer.age_group} {t('offer.footballMatch')}
-                                </Text>
-                                <Text style={styles.formatText}>{offer.format}</Text>
-                            </View>
-                            {offer.status !== 'OPEN' && (
-                                <View style={styles.closedBadge}>
-                                    <Text style={styles.closedBadgeText}>{t('offer.closed')}</Text>
-                                </View>
-                            )}
                         </View>
+                    </View>
+                </View>
 
-                        <View style={styles.detailsGrid}>
-                            <Pressable style={styles.detailRow} onPress={() => openInMaps(offer.location)}>
-                                <Ionicons name="location" size={20} color={Colors[colorScheme].primary} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>{t('offer.locationLabel')}</Text>
-                                    <Text style={[styles.detailValue, { color: Colors[colorScheme].primary }]}>{offer.location}</Text>
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.column}>
+                        {/* Share / invite banner */}
+                        <Card tone="sunk" radius={16} padding={16} style={styles.inviteCard}>
+                            <Text style={styles.inviteText}>
+                                <Text style={styles.inviteStrong}>{offer.host_club || offer.host_name}</Text>
+                                {' '}invited your team to a friendly.
+                            </Text>
+                        </Card>
+
+                        {/* Fixture card */}
+                        <Card radius={20} padding={22} style={styles.fixtureCard}>
+                            <Text style={styles.kicker}>
+                                {t('offer.footballMatch')} · {offer.age_group}
+                            </Text>
+
+                            <View style={styles.fixtureRow}>
+                                <View style={styles.fixtureSide}>
+                                    <Crest name={offer.host_club || offer.host_name} shape="circle" size={50} />
+                                    <Text style={styles.crestName} numberOfLines={1}>
+                                        {offer.host_club || offer.host_name}
+                                    </Text>
                                 </View>
-                                <Ionicons name="navigate-outline" size={16} color={Colors[colorScheme].primary} />
-                            </Pressable>
 
-                            <View style={styles.detailRow}>
-                                <Ionicons name="timer" size={20} color={Colors[colorScheme].primary} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>{t('offer.durationLabel')}</Text>
-                                    <Text style={styles.detailValue}>{offer.duration} {t('common.minutes')}</Text>
+                                <View style={styles.fixtureCenter}>
+                                    <Text style={styles.fixtureDetail}>{offer.age_group}</Text>
+                                    <Text style={styles.fixtureSub}>{offer.format}</Text>
                                 </View>
-                            </View>
 
-                            <View style={styles.detailRow}>
-                                <Ionicons name="person" size={20} color={Colors[colorScheme].primary} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.detailLabel}>{t('offer.hostLabel')}</Text>
-                                    <Text style={styles.detailValue}>
-                                        {offer.host_name}
-                                        {offer.host_club && ` (${offer.host_club})`}
+                                <View style={styles.fixtureSide}>
+                                    <Crest name={null} shape="circle" size={50} />
+                                    <Text style={[styles.crestName, { color: c.textFaint }]} numberOfLines={1}>
+                                        {t('common.away')}
                                     </Text>
                                 </View>
                             </View>
 
-                            {offer.notes && (
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="information-circle" size={20} color={Colors[colorScheme].primary} />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.detailLabel}>{t('offer.additionalInfo')}</Text>
-                                        <Text style={styles.detailValue}>{offer.notes}</Text>
+                            <View style={styles.fixtureStatus}>
+                                <StatusChip
+                                    kind={isClosed ? 'closed' : 'open'}
+                                    label={isClosed ? t('offer.closed') : t('offer.available')}
+                                />
+                            </View>
+
+                            {/* Location + host info */}
+                            <View style={styles.infoList}>
+                                <Pressable style={styles.infoRow} onPress={() => openInMaps(offer.location)}>
+                                    <View style={styles.infoLabelGroup}>
+                                        <MapPin size={15} color={c.textMuted} strokeWidth={2} />
+                                        <Text style={styles.infoLabel}>{t('offer.locationLabel')}</Text>
                                     </View>
+                                    <View style={styles.infoValueGroup}>
+                                        <Text style={[styles.infoValue, { color: c.primary }]} numberOfLines={1}>
+                                            {offer.location}
+                                        </Text>
+                                        <Navigation size={14} color={c.primary} strokeWidth={2} />
+                                    </View>
+                                </Pressable>
+
+                                <View style={styles.infoRow}>
+                                    <View style={styles.infoLabelGroup}>
+                                        <Clock size={15} color={c.textMuted} strokeWidth={2} />
+                                        <Text style={styles.infoLabel}>{t('offer.durationLabel')}</Text>
+                                    </View>
+                                    <Text style={styles.infoValue}>{offer.duration} {t('common.minutes')}</Text>
                                 </View>
-                            )}
-                        </View>
-                    </Card>
 
-                    {/* Time Slots */}
-                    <Text style={styles.sectionTitle}>{t('offer.availableSlots')}</Text>
-                    <Text style={styles.sectionSubtitle}>
-                        {t('offer.selectSlotDesc')}
-                    </Text>
-
-                    {offer.slots.length === 0 ? (
-                        <Card style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>{t('offer.noSlots')}</Text>
-                        </Card>
-                    ) : (
-                        offer.slots.map((slot) => {
-                            const available = isSlotAvailable(slot);
-                            const { date, time } = formatDateTime(slot.start_time);
-                            const endTime = formatDateTime(slot.end_time).time;
-
-                            return (
-                                <Card
-                                    key={slot.id}
-                                    style={[
-                                        styles.slotCard,
-                                        !available && styles.slotCardDisabled
-                                    ]}
-                                >
-                                    <View style={styles.slotContent}>
-                                        <View style={styles.slotTimeInfo}>
-                                            <Text style={[styles.slotDate, !available && styles.textDisabled]}>
-                                                {date}
-                                            </Text>
-                                            <Text style={[styles.slotTime, !available && styles.textDisabled]}>
-                                                {time} - {endTime}
-                                            </Text>
-                                            <View style={styles.slotMeta}>
-                                                <View style={[styles.statusDot, { backgroundColor: getStatusColor(slot.status) }]} />
-                                                <Text style={[styles.statusLabel, { color: getStatusColor(slot.status) }]}>
-                                                    {getStatusLabel(slot.status)}
-                                                </Text>
-                                            </View>
+                                {offer.notes ? (
+                                    <View style={[styles.infoRow, styles.infoRowLast]}>
+                                        <View style={styles.infoLabelGroup}>
+                                            <AlertCircle size={15} color={c.textMuted} strokeWidth={2} />
+                                            <Text style={styles.infoLabel}>{t('offer.additionalInfo')}</Text>
                                         </View>
-
-                                        {available ? (
-                                            <TouchableOpacity
-                                                style={styles.selectButton}
-                                                onPress={() => handleSelectSlot(slot.id)}
-                                            >
-                                                <Text style={styles.selectButtonText}>{t('offer.select')}</Text>
-                                                <Ionicons name="arrow-forward" size={20} color="#fff" />
-                                            </TouchableOpacity>
-                                        ) : (
-                                            <View style={styles.unavailableIcon}>
-                                                <Ionicons name="lock-closed" size={24} color={Colors[colorScheme].textSecondary} />
-                                            </View>
-                                        )}
+                                        <Text style={[styles.infoValue, styles.infoValueWrap]}>{offer.notes}</Text>
                                     </View>
-                                </Card>
-                            );
-                        })
-                    )}
+                                ) : null}
+                            </View>
+                        </Card>
+
+                        {/* Slots */}
+                        <Text style={styles.sectionKicker}>{t('offer.availableSlots')}</Text>
+                        <Text style={styles.sectionSubtitle}>{t('offer.selectSlotDesc')}</Text>
+
+                        {offer.slots.length === 0 ? (
+                            <EmptyState
+                                icon={<Clock size={24} color={c.primary} strokeWidth={2} />}
+                                title={t('offer.noSlots')}
+                            />
+                        ) : (
+                            offer.slots.map((slot) => {
+                                const available = isSlotAvailable(slot);
+                                const { date, time } = formatDateTime(slot.start_time);
+                                const endTime = formatDateTime(slot.end_time).time;
+                                const statusColor = getStatusColor(slot.status);
+
+                                if (available) {
+                                    return (
+                                        <Card key={slot.id} radius={16} padding={16} style={styles.slotCard}>
+                                            <View style={styles.slotContent}>
+                                                <View style={styles.slotTimeInfo}>
+                                                    <Text style={styles.slotDate}>{date}</Text>
+                                                    <Text style={styles.slotTime}>{time} - {endTime}</Text>
+                                                </View>
+                                                <Button
+                                                    title={t('offer.select')}
+                                                    variant="primary"
+                                                    onPress={() => handleSelectSlot(slot.id)}
+                                                    style={styles.bookButton}
+                                                />
+                                            </View>
+                                        </Card>
+                                    );
+                                }
+
+                                return (
+                                    <Card key={slot.id} radius={16} padding={16} style={[styles.slotCard, styles.slotCardDisabled]}>
+                                        <View style={styles.slotContent}>
+                                            <View style={styles.slotTimeInfo}>
+                                                <Text style={[styles.slotDate, { color: c.textMuted }]}>{date}</Text>
+                                                <Text style={[styles.slotTime, { color: c.textFaint }]}>{time} - {endTime}</Text>
+                                            </View>
+                                            <StatusChip kind={slotStatusKind(slot.status)} label={getStatusLabel(slot.status)} />
+                                        </View>
+                                    </Card>
+                                );
+                            })
+                        )}
+                    </View>
                 </ScrollView>
+
+                {/* Pinned smart-app banner */}
+                <View style={styles.smartBanner}>
+                    <View style={styles.smartBannerInner}>
+                        <View style={styles.smartBannerLeft}>
+                            <Monogram size={32} />
+                            <View>
+                                <Text style={styles.smartBannerTitle}>Get MatchSlot</Text>
+                                <Text style={styles.smartBannerSub}>Track every match</Text>
+                            </View>
+                        </View>
+                        <Pressable style={styles.smartBannerButton} onPress={openInApp}>
+                            <Text style={styles.smartBannerButtonText}>Open</Text>
+                        </Pressable>
+                    </View>
+                </View>
             </View>
         </>
     );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-    },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: Colors[colorScheme].background,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    scrollContent: {
-        padding: 20,
-    },
-    errorTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: Colors[colorScheme].text,
-        marginTop: 16,
-    },
-    errorSubtitle: {
-        fontSize: 16,
-        color: Colors[colorScheme].textSecondary,
-        marginTop: 8,
-        textAlign: 'center',
-    },
-    detailsCard: {
-        padding: 20,
-        marginBottom: 24,
-    },
-    iconHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-        marginBottom: 24,
-        paddingBottom: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors[colorScheme].border,
-    },
-    iconCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 20,
-        backgroundColor: Colors[colorScheme].secondary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    mainTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 4,
-    },
-    formatText: {
-        fontSize: 16,
-        color: Colors[colorScheme].textSecondary,
-        fontWeight: '500',
-    },
-    closedBadge: {
-        backgroundColor: 'rgba(239,68,68,0.1)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    closedBadgeText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: Colors[colorScheme].error,
-    },
-    detailsGrid: {
-        gap: 16,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-    },
-    detailLabel: {
-        fontSize: 12,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 2,
-        textTransform: 'uppercase',
-        fontWeight: '600',
-    },
-    detailValue: {
-        fontSize: 16,
-        color: Colors[colorScheme].text,
-        fontWeight: '500',
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 8,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: Colors[colorScheme].textSecondary,
-        marginBottom: 16,
-    },
-    emptyCard: {
-        padding: 24,
-        alignItems: 'center',
-    },
-    emptyText: {
-        fontSize: 16,
-        color: Colors[colorScheme].textSecondary,
-    },
-    slotCard: {
-        padding: 16,
-        marginBottom: 12,
-    },
-    slotCardDisabled: {
-        opacity: 0.6,
-    },
-    slotContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    slotTimeInfo: {
-        flex: 1,
-    },
-    slotDate: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Colors[colorScheme].text,
-        marginBottom: 4,
-    },
-    slotTime: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: Colors[colorScheme].text,
-        marginBottom: 8,
-    },
-    textDisabled: {
-        color: Colors[colorScheme].textSecondary,
-    },
-    slotMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    statusLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    selectButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        backgroundColor: Colors[colorScheme].primary,
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 16,
-    },
-    selectButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    unavailableIcon: {
-        padding: 12,
-    },
-});
+const COLUMN = 460;
+
+const getStyles = (colorScheme: 'light' | 'dark') => {
+    const c = Colors[colorScheme];
+    return StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: c.background,
+        },
+        centerContainer: {
+            flex: 1,
+            backgroundColor: c.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+        },
+        column: {
+            width: '100%',
+            maxWidth: COLUMN,
+            alignSelf: 'center',
+        },
+        // Verified header
+        verifiedHeader: {
+            backgroundColor: c.background,
+            borderBottomWidth: 1,
+            borderBottomColor: c.divider,
+            paddingHorizontal: 20,
+            paddingTop: Platform.OS === 'web' ? 16 : 56,
+            paddingBottom: 14,
+        },
+        verifiedRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+        },
+        secureChip: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+            height: 28,
+            paddingHorizontal: 11,
+            borderRadius: 999,
+            backgroundColor: c.primaryTint,
+        },
+        secureChipText: {
+            fontFamily: Fonts.body,
+            fontSize: 12,
+            fontWeight: '700',
+            color: c.primary,
+        },
+        scrollContent: {
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 96,
+        },
+        // Invite banner
+        inviteCard: {
+            backgroundColor: c.primaryTint,
+            borderColor: c.primaryTint,
+        },
+        inviteText: {
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '500',
+            color: c.text,
+            lineHeight: 19,
+        },
+        inviteStrong: {
+            fontFamily: Fonts.body,
+            fontWeight: '700',
+            color: c.primary,
+        },
+        // Fixture card
+        fixtureCard: {},
+        kicker: {
+            fontFamily: Fonts.body,
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: c.textMuted,
+            textAlign: 'center',
+            marginBottom: 18,
+        },
+        fixtureRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+        },
+        fixtureSide: {
+            width: 88,
+            alignItems: 'center',
+            gap: 8,
+        },
+        crestName: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '600',
+            color: c.text,
+            textAlign: 'center',
+        },
+        fixtureCenter: {
+            flex: 1,
+            alignItems: 'center',
+        },
+        fixtureDetail: {
+            fontFamily: Fonts.display,
+            fontSize: 30,
+            fontWeight: '800',
+            letterSpacing: -1,
+            color: c.text,
+        },
+        fixtureSub: {
+            fontFamily: Fonts.body,
+            fontSize: 10.5,
+            fontWeight: '700',
+            letterSpacing: 1,
+            textTransform: 'uppercase',
+            color: c.textFaint,
+            marginTop: 2,
+        },
+        fixtureStatus: {
+            alignItems: 'center',
+            marginTop: 18,
+        },
+        infoList: {
+            marginTop: 20,
+            borderTopWidth: 1,
+            borderTopColor: c.dividerFine,
+        },
+        infoRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 11,
+            borderBottomWidth: 1,
+            borderBottomColor: c.dividerFine,
+            gap: 12,
+        },
+        infoRowLast: {
+            borderBottomWidth: 0,
+            alignItems: 'flex-start',
+        },
+        infoLabelGroup: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+        },
+        infoLabel: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '500',
+            color: c.textMuted,
+        },
+        infoValueGroup: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            flexShrink: 1,
+        },
+        infoValue: {
+            fontFamily: Fonts.body,
+            fontSize: 13.5,
+            fontWeight: '700',
+            color: c.text,
+            textAlign: 'right',
+        },
+        infoValueWrap: {
+            flexShrink: 1,
+            textAlign: 'right',
+        },
+        // Section
+        sectionKicker: {
+            fontFamily: Fonts.body,
+            fontSize: 11,
+            fontWeight: '700',
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: c.textMuted,
+            marginTop: 8,
+            marginBottom: 6,
+        },
+        sectionSubtitle: {
+            fontFamily: Fonts.body,
+            fontSize: 13,
+            fontWeight: '500',
+            color: c.textMuted,
+            marginBottom: 14,
+        },
+        // Slot rows
+        slotCard: {},
+        slotCardDisabled: {
+            opacity: 0.72,
+        },
+        slotContent: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+        },
+        slotTimeInfo: {
+            flex: 1,
+        },
+        slotDate: {
+            fontFamily: Fonts.body,
+            fontSize: 12.5,
+            fontWeight: '600',
+            color: c.textMuted,
+            marginBottom: 3,
+        },
+        slotTime: {
+            fontFamily: Fonts.display,
+            fontSize: 16,
+            fontWeight: '800',
+            letterSpacing: -0.3,
+            color: c.text,
+        },
+        bookButton: {
+            height: 44,
+            paddingHorizontal: 20,
+        },
+        // Smart app banner
+        smartBanner: {
+            backgroundColor: colorScheme === 'dark' ? '#0A100C' : '#131E17',
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: Platform.OS === 'web' ? 12 : 28,
+        },
+        smartBannerInner: {
+            width: '100%',
+            maxWidth: COLUMN,
+            alignSelf: 'center',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+        },
+        smartBannerLeft: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            flexShrink: 1,
+        },
+        smartBannerTitle: {
+            fontFamily: Fonts.body,
+            fontSize: 14,
+            fontWeight: '700',
+            color: '#EAF1EA',
+        },
+        smartBannerSub: {
+            fontFamily: Fonts.body,
+            fontSize: 11.5,
+            fontWeight: '500',
+            color: '#8FA091',
+            marginTop: 1,
+        },
+        smartBannerButton: {
+            backgroundColor: '#35D98A',
+            paddingHorizontal: 18,
+            height: 36,
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        smartBannerButtonText: {
+            fontFamily: Fonts.body,
+            fontSize: 13,
+            fontWeight: '700',
+            color: '#06231A',
+        },
+    });
+};
