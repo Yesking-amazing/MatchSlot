@@ -165,7 +165,7 @@ export default function SlotDetailScreen() {
             </View>
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
                     {/* Fixture card */}
                     <View style={styles.fixture}>
                         <Text style={styles.fixtureKicker}>{offer.age_group} · {offer.format}</Text>

@@ -292,7 +292,7 @@ export default function CreateMatchScreen() {
                         <Text style={styles.headerTitle}>{t('create.title')}</Text>
                     </View>
 
-                    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
 
                         {/* Host Information */}
                         <Text style={styles.kicker}>{t('create.yourDetails')}</Text>

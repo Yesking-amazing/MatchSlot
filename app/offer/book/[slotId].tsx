@@ -324,7 +324,7 @@ export default function BookSlotScreen() {
                     </View>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
                     <View style={styles.column}>
                         <Text style={styles.sectionKicker}>{t('book.yourTeamDetails')}</Text>
 
